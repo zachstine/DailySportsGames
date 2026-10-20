@@ -1,0 +1,38 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function owner() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/owners/$(request.auth.uid))
+        && get(/databases/$(database)/documents/owners/$(request.auth.uid)).data.enabled == true;
+    }
+    function validPuzzle(date) {
+      let p = request.resource.data;
+      return p.keys().hasOnly(['date', 'puzzle', 'published', 'unlockAt', 'updatedAt', 'updatedBy', 'revision'])
+        && p.keys().hasAll(['date', 'puzzle', 'published', 'unlockAt', 'updatedAt', 'updatedBy', 'revision'])
+        && date.matches('20[0-9]{2}-[0-9]{2}-[0-9]{2}')
+        && p.date == date && p.puzzle is map && p.puzzle.date == date
+        && p.puzzle.schemaVersion == 1
+        && p.puzzle.playerGuess is map && p.puzzle.statLadder is map && p.puzzle.crossSport is map
+        && p.published is bool && p.unlockAt is timestamp
+        && p.updatedAt == request.time && p.updatedBy == request.auth.uid
+        && p.revision is int && p.revision > 0;
+    }
+    match /owners/{uid} {
+      // Bootstrap this document manually in the Firebase Console. A client
+      // cannot grant itself owner access or edit the owner list.
+      allow get: if request.auth != null && request.auth.uid == uid;
+      allow list, create, update, delete: if false;
+    }
+    match /dailyPuzzles/{date} {
+      allow get: if owner() || (resource.data.published == true && resource.data.unlockAt <= request.time);
+      allow list: if owner();
+      allow create: if owner() && validPuzzle(date) && request.resource.data.revision == 1;
+      allow update: if owner() && validPuzzle(date)
+        && request.resource.data.revision == resource.data.revision + 1
+        && !(resource.data.published == true && resource.data.unlockAt <= request.time);
+      allow delete: if false;
+    }
+    match /{document=**} { allow read, write: if false; }
+  }
+}

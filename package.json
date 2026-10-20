@@ -1,0 +1,14 @@
+{
+  "name": "daily-sports-games",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Three daily sports games, with a Firebase puzzle desk and no production build dependencies.",
+  "scripts": {
+    "dev": "node scripts/serve.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "check": "node scripts/check.mjs",
+    "build": "node scripts/build.mjs"
+  },
+  "engines": { "node": ">=22" }
+}
