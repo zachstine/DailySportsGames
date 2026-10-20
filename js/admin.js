@@ -143,7 +143,7 @@ async function publish(toPublic) {
 
 async function checkUser(user) {
   authorized = false;
-  $("#login-form").hidden = Boolean(user); $("#sign-out").hidden = !user;
+  $("#owner-sign-in").hidden = Boolean(user); $("#sign-out").hidden = !user;
   $("#owner-identity").hidden = !user;
   if (user) {
     $("#owner-identity").textContent = `Signed in as ${user.email || user.uid} · UID: ${user.uid}`;
@@ -181,6 +181,25 @@ $("#login-form").addEventListener("submit", async event => {
       "auth/too-many-requests": "Too many sign-in attempts. Wait a little before trying again."
     };
     message(messages[error.code] || "Sign-in couldn't finish. Check your Firebase config, account, and connection.", true);
+  } finally { button.disabled = false; }
+});
+
+$("#google-sign-in").addEventListener("click", async event => {
+  const button = event.currentTarget; button.disabled = true;
+  try {
+    if (!connection) connection = await connectOwner();
+    const provider = new connection.authModule.GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: "select_account" });
+    await connection.authModule.signInWithPopup(connection.auth, provider);
+  } catch (error) {
+    const messages = {
+      "auth/operation-not-allowed": "Enable Google sign-in in Firebase Authentication first.",
+      "auth/unauthorized-domain": "Add this website's hostname to Firebase Authentication's authorized domains.",
+      "auth/popup-blocked": "Allow the sign-in popup for this site, then try again.",
+      "auth/popup-closed-by-user": "Sign-in was canceled. Your local draft is safe.",
+      "auth/account-exists-with-different-credential": "Use your existing email/password login for this owner account."
+    };
+    message(messages[error.code] || "Google sign-in couldn't finish. Check your Firebase provider settings and connection.", true);
   } finally { button.disabled = false; }
 });
 
@@ -273,7 +292,7 @@ try {
 
 if (!configured) {
   message("Local editor mode · Add your Firebase web app config to enable owner sign-in and publishing.");
-  $("#login-form").hidden = true;
+  $("#owner-sign-in").hidden = true;
 } else {
   try {
     connection = await connectOwner();

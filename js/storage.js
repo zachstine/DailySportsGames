@@ -1,4 +1,4 @@
-import { newState, puzzleFingerprint, GAMES, dateKey } from "./core.js";
+import { newState, puzzleFingerprint, GAMES, dateKey, validDate } from "./core.js";
 
 const PREFIX = "dsg:v1:";
 export let storageAvailable = true;
@@ -41,8 +41,14 @@ export function saveGame(game, puzzle, mode, state) {
     const records = readLocal("results", []);
     const list = Array.isArray(records) ? records : [];
     // One completion per game and date. Completion streaks are separate per game.
+    const previous = list.find(r => r?.game === game && r.date === puzzle.date);
     const rest = list.filter(r => r && !(r.game === game && r.date === puzzle.date));
-    writeLocal("results", [...rest, { game, date: puzzle.date, mode, done: true, won: state.won, score: state.score }]);
+    writeLocal("results", [...rest, {
+      game, date: puzzle.date, mode, done: true, won: state.won, score: state.score,
+      checks: game === "cross" ? state.checks : 0,
+      reveals: game === "cross" ? state.reveals.length : 0,
+      cloud: previous?.cloud === "recorded" ? "recorded" : "pending"
+    }]);
   }
   return result;
 }
@@ -50,6 +56,23 @@ export function saveGame(game, puzzle, mode, state) {
 export function allResults() {
   const value = readLocal("results", []);
   return Array.isArray(value) ? value.filter(r => r && GAMES.includes(r.game) && typeof r.date === "string") : [];
+}
+
+export function pendingResults() {
+  // Earlier daily saves did not have assistance counts or a cloud status.
+  // Practice and preview records must never become daily submissions.
+  return allResults().filter(r => r.mode === "daily" && r.done === true && r.cloud !== "recorded" &&
+    validDate(r.date) && typeof r.won === "boolean" && Number.isInteger(r.score) &&
+    r.score >= 0 && r.score <= (r.game === "ladder" ? 15 : r.game === "player" ? 5 : 1))
+    .map(r => ({ ...r, checks: r.checks ?? 0, reveals: r.reveals ?? 0 }));
+}
+
+export function markResultRecorded(game, date) {
+  return writeLocal("results", allResults().map(r => r.game === game && r.date === date ? { ...r, cloud: "recorded" } : r));
+}
+
+export function resultRecorded(game, date) {
+  return allResults().some(r => r.game === game && r.date === date && r.cloud === "recorded");
 }
 
 export function resetPractice(puzzle, mode) {

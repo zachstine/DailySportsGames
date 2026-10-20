@@ -1,16 +1,16 @@
 import { firebaseConfig } from "../firebase-config.js";
-import { releaseTime, validatePuzzle } from "./core.js";
+import { releaseTime, validatePuzzle, validDate, GAMES } from "./core.js";
 
 export const configured = Boolean(firebaseConfig.apiKey && firebaseConfig.projectId && firebaseConfig.appId);
 const SDK = "https://www.gstatic.com/firebasejs/13.0.0";
-let connection;
+let connection, playerConnection;
 
 export async function connect() {
   if (!configured) throw new Error("Firebase is not connected. Add your web app config to firebase-config.js.");
   if (!connection) connection = (async () => {
     const [app, store] = await Promise.all([import(`${SDK}/firebase-app.js`), import(`${SDK}/firebase-firestore.js`)]);
     const instance = app.getApps().length ? app.getApp() : app.initializeApp(firebaseConfig);
-    return { instance, store, db: store.getFirestore(instance) };
+    return { instance, appModule: app, store, db: store.getFirestore(instance) };
   })().catch(error => { connection = null; throw error; });
   return connection;
 }
@@ -32,6 +32,49 @@ export async function connectOwner() {
   await authModule.setPersistence(auth, authModule.browserSessionPersistence);
   await auth.authStateReady();
   return { db, store, auth, authModule };
+}
+
+async function connectPlayer() {
+  if (!playerConnection) playerConnection = (async () => {
+    const [{ appModule, store }, authModule] = await Promise.all([connect(), import(`${SDK}/firebase-auth.js`)]);
+    // A separate app keeps the guest identity independent of owner sign-in.
+    const name = "daily-sports-players";
+    const instance = appModule.getApps().find(app => app.name === name) || appModule.initializeApp(firebaseConfig, name);
+    const auth = authModule.getAuth(instance);
+    await authModule.setPersistence(auth, authModule.browserLocalPersistence);
+    await auth.authStateReady();
+    if (!auth.currentUser) await authModule.signInAnonymously(auth);
+    return { db: store.getFirestore(instance), store, auth };
+  })().catch(error => { playerConnection = null; throw error; });
+  return playerConnection;
+}
+
+export async function recordDailyResult(result) {
+  return writeDailyResult(await connectPlayer(), result);
+}
+
+export async function writeDailyResult(connection, result) {
+  const { db, store, auth } = connection;
+  const { date, game, score, won, checks, reveals } = result;
+  const limit = game === "ladder" ? 15 : game === "player" ? 5 : 1;
+  if (result.mode !== "daily" || result.done !== true || !validDate(date) || !GAMES.includes(game) ||
+    !Number.isInteger(score) || score < 0 || score > limit || won !== (score > 0) ||
+    !Number.isInteger(checks) || checks < 0 || checks > 1000000 ||
+    !Number.isInteger(reveals) || reveals < 0 || reveals > 121 ||
+    (game === "cross" ? score !== 1 : checks !== 0 || reveals !== 0)) throw new Error("Invalid daily result.");
+  const playerId = auth.currentUser?.uid;
+  if (!playerId) throw new Error("A player session is required to record a result.");
+  const reference = store.doc(db, "results", `${playerId}_${date}_${game}`);
+  const data = { playerId, date, game, score, won, checks, reveals };
+  try {
+    await store.setDoc(reference, { ...data, completedAt: store.serverTimestamp() });
+  } catch (error) {
+    if (error.code !== "permission-denied") throw error;
+    // A lost acknowledgement or another tab can retry the same completion.
+    // Rules keep the original result immutable; confirm it instead of updating it.
+    const existing = await store.getDocFromServer(reference);
+    if (!existing.exists() || !Object.entries(data).every(([key, value]) => existing.data()[key] === value)) throw error;
+  }
 }
 
 export async function isOwner(connection, uid) {

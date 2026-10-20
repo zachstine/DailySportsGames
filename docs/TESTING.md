@@ -15,6 +15,11 @@ Run `npm run check`, `npm test`, and `npm run build` first. Then use this short 
 - Practice should never add a daily streak. A finished daily game should add one completion for its date; refreshing shouldn't add another.
 - In a private browser, progress should be separate. With browser storage blocked, game play should continue with a clear persistence message.
 - With Firebase configured, simulate offline mode or a bad connection: the site should offer practice explicitly rather than silently substitute sample puzzles for the real daily game.
+- On an unpublished date, the home page should show the practice cards, a **PRACTICE SLATE** label, a notice explaining the missing daily slate, and **Check for today's games**. Finishing these games must not add a daily streak or Firestore result.
+- Finish a real daily game. The result must say **Result recorded online**, and Firestore `results` must contain one document for that guest/date/game. Score, checks, and reveals should match. The record should contain no answer or guess text.
+- Refresh, reopen the finished game, and retry recording. The same result document and original server completion time should remain. Move to the next game before the first score finishes recording: its input must stay intact.
+- Disconnect after loading a daily slate, then finish it. The result should remain local with a retry message. Reconnect or reopen the daily page and confirm the pending result reaches Firestore once. Practice and preview completions must never enter this queue.
+- Sign in/out of the owner desk, then return to the game site. Guest score identity and local progress should remain separate from the owner login.
 
 ## Owner desk
 
@@ -46,7 +51,15 @@ Use Firebase's authenticated and unauthenticated rule simulations (or the Emulat
 | Signed-in owner: update a released, published document | Deny |
 | Signed-in owner: update without a revision increment or with mismatched date/UID | Deny |
 | Anyone using the client SDK: create/update/delete an owners document | Deny |
+| Signed-out visitor: create or read a result | Deny |
+| Anonymous guest: create a correctly shaped result for their UID and a released daily slate | Allow |
+| Anonymous guest: create a result for someone else's UID, a future slate, or a missing slate | Deny |
+| Anonymous guest: create a result with out-of-range score, extra fields, or a client completion timestamp | Deny |
+| Anonymous guest: get their own result | Allow |
+| Anonymous guest: get another guest's result or list results | Deny |
+| Owner: read/list completed results | Allow |
+| Anyone using the client SDK: update/delete an existing result | Deny |
 
-`updatedAt` must be a server timestamp matching the request time. `unlockAt` is a Firestore timestamp computed by the owner editor for Eastern midnight. The owner is a trusted content author; the editor validates all game fields before writing, while rules enforce access, revision, release, immutability, and the top-level document shape. A malicious account with actual owner authorization is not a threat the client editor can prevent; remove its owner document in the Console if access must be revoked.
+`updatedAt` and result `completedAt` must be server timestamps matching the request time. `unlockAt` is a Firestore timestamp computed by the owner editor for Eastern midnight. Result document IDs must be `{auth UID}_{date}_{game}`; duplicate attempts cannot overwrite an accepted result. The owner is a trusted content author; the editor validates all game fields before writing, while rules enforce access, revision, release, immutability, and the top-level document shape. A malicious account with actual owner authorization is not a threat the client editor can prevent; remove its owner document in the Console if access must be revoked. Client scores are appropriate for this friendly demo and are not server-verified for competitive play.
 
 For rollover testing, use the emulator or a temporary separate development project. Avoid changing your computer clock or unlocking real future puzzles just to test: the browser and Firestore server have different clocks. Automated tests already cover Eastern dates and both daylight saving transitions.

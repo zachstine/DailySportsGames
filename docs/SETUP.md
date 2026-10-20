@@ -14,13 +14,15 @@ The website's code is pinned to the modular Firebase web SDK 13.0.0 and download
 
 ## 2. Create your owner login
 
-1. Under **Build → Authentication → Sign-in method**, enable **Email/Password**. Phone login isn't needed.
-2. Under **Authentication → Users**, click **Add user** and enter the email and password you want for the owner desk.
+1. Under **Authentication → Sign-in method**, enable **Google** for the owner and choose the project's support email. You may also enable **Email/Password** if you prefer that login. Phone login isn't needed.
+2. Open `admin.html` and sign in with Google. This creates your Firebase Auth account without giving it publishing access. Alternatively, create an Email/Password user under **Authentication → Users → Add user** and sign in with it.
 3. Copy that user's **UID**.
 4. In Firestore, create a collection named `owners`. Create a document whose **document ID is exactly that UID**. Add one field: `enabled`, type **boolean**, value **true**.
 5. Under **Authentication → Settings → Authorized domains**, add `zachstine.github.io` and `localhost` if needed. If the repository is moved, use the actual hosting hostname. Add the hostname only, not `https://` or a path.
 
 Only the Firebase Console (or a trusted admin environment) can add owners. Website visitors cannot add or edit owner documents. Knowing someone's email is not enough to obtain publishing access.
+
+Under **Authentication → Sign-in method**, also enable **Anonymous** for guest score recording. This lets each browser submit its own completed daily scores without a signup form. It does not grant publishing access. The deployed `firestore.rules` must include the restricted `results` collection rules from this repository. The owner login and guest identity use separate Firebase app instances, so owner sign-in doesn't replace a player's guest identity.
 
 ## 3. Bring the files into your VS Code project
 
@@ -74,12 +76,24 @@ git push origin main
 
 The Pages URL works as a practice demo before Firebase is configured. Treat the URL as live only after GitHub confirms a successful deployment. New source commits update the site automatically. Owner puzzle uploads go straight to Firestore and need no code deployment.
 
+## 6. Confirm the database writes
+
+Publish a slate for today, open the public home page, and confirm the edition says **THE DAILY SLATE**. Complete a game and look for **Result recorded online** on its result screen. In **Firestore → Data**, you should see:
+
+- `dailyPuzzles`: the slate saved by the owner desk.
+- `owners`: your publishing authorization document.
+- `results`: one document per completed daily game and guest identity, with score, date, game, `completedAt`, and crossword checks/reveals.
+
+Refresh the completed game: its score and one-day streak should remain, and it should not create another result document. A missing slate displays **PRACTICE SLATE** instead; practice and previews do not write scores to Firestore. Previously completed practice games cannot be converted into real daily results.
+
+If a daily result says online recording is unavailable, verify Anonymous sign-in is enabled and the latest rules are published. The score remains local and queued for retry. Existing genuine daily completions can retry from the same browser; results from a different browser or cleared storage cannot be recovered by this MVP.
+
 If you use a different GitHub account later, update the clone and setup links, hosting hostname in Firebase, and the URL you share. All in-app asset links are relative, so the code supports a repository subpath.
 
 ## Costs and scope
 
-The target is **$0/month** for this friend demo: public GitHub Pages, Spark Firestore, and owner Email/Password Authentication. Firestore's free quotas include **50,000 document reads/day**, **20,000 writes/day**, and **1 GiB of storage** for the default free database. Watch actual usage in the Firebase Console. A page load normally reads one daily puzzle document shared by all three games, without a live listener. Owner operations can read additional documents for authorization and scheduling.
+The target is **$0/month** for this friend demo: public GitHub Pages, Spark Firestore, owner Google/Email Authentication, and anonymous guest authentication. Firestore's free quotas include **50,000 document reads/day**, **20,000 writes/day**, and **1 GiB of storage** for the default free database. Watch actual usage in the Firebase Console. A page load normally reads one daily puzzle document shared by all three games, without a live listener. Each completed game adds a result write; rule checks and duplicate retries can also use reads. Owner operations can read additional documents for authorization and scheduling.
 
-Keep the project on Spark for the demo. Quota exhaustion can stop Firebase operations instead of increasing a bill. Cloud Functions, a Cloud Storage bucket, paid sports APIs, player accounts, cross-device progress, and a trusted leaderboard are outside this version. JSON “upload” means reading a local file in the browser and writing a validated Firestore document; it doesn't use Cloud Storage.
+Keep the project on Spark for the demo. Quota exhaustion can stop Firebase operations instead of increasing a bill. Cloud Functions, a Cloud Storage bucket, paid sports APIs, player signup, cross-device progress, and a trusted leaderboard are outside this version. JSON “upload” means reading a local file in the browser and writing a validated Firestore document; it doesn't use Cloud Storage.
 
 Reference: [Firebase pricing plans](https://firebase.google.com/docs/projects/billing/firebase-pricing-plans), [Firestore quotas](https://firebase.google.com/docs/firestore/quotas), [Pages publishing source](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site).

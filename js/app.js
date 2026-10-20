@@ -1,13 +1,16 @@
 import { dateKey, shiftDate, releaseTime, GAME_NAMES, GAMES, buildCrossword, validatePuzzle,
   guessPlayer, guessLadder, finishCrossword, streakStats, shareScore } from "./core.js";
-import { loadGame, saveGame, allResults, storageAvailable, resetPractice, readPreview } from "./storage.js";
-import { configured, getDailyPuzzle } from "./firebase.js";
+import { loadGame, saveGame, allResults, storageAvailable, resetPractice, readPreview,
+  pendingResults, markResultRecorded, resultRecorded } from "./storage.js";
+import { configured, getDailyPuzzle, recordDailyResult } from "./firebase.js";
 
 const $ = selector => document.querySelector(selector);
 const escape = value => String(value ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
 let puzzle, mode = "practice", states = {}, crossword, activeEntry = 0, activeCell = 0;
 let loadedDate = dateKey(), shareText = "", toastTimer, busy = false, badLetters = new Set();
 let practicePuzzle;
+let syncingResults = false;
+const resultErrors = new Set();
 
 async function getPractice() {
   if (!practicePuzzle) {
@@ -51,18 +54,23 @@ async function loadSlate(forcePractice = false) {
         if (error.code !== "permission-denied") throw error;
       }
       if (!puzzle) {
-        $("#unavailable-view").hidden = false;
-        $("#unavailable-message").textContent = "Today's slate isn't published yet. Check back shortly, or try the practice games.";
-        showNotice(""); return;
-      }
-      showNotice("");
+        puzzle = await getPractice(); mode = "practice";
+        showNotice("Today's daily slate isn't available yet. Try the practice games below; practice doesn't count toward daily streaks.", "warning");
+        const retry = document.createElement("button");
+        retry.className = "text-button"; retry.dataset.action = "retry"; retry.textContent = "Check for today's games →";
+        $("#site-status").append(" ", retry);
+      } else showNotice("");
     }
     crossword = buildCrossword(puzzle.crossSport);
     activeEntry = crossword.entries[0].id; activeCell = crossword.entries[0].positions[0]; badLetters.clear();
-    for (const game of GAMES) states[game] = loadGame(game, puzzle, mode);
+    for (const game of GAMES) {
+      states[game] = loadGame(game, puzzle, mode);
+      if (mode === "daily" && states[game].done) saveGame(game, puzzle, mode, states[game]);
+    }
     $("#reset-practice").hidden = mode === "daily";
     if (!storageAvailable) showNotice("Browser storage is unavailable. Games work, but progress and streaks won't survive a refresh.", "warning");
     renderDashboard(); route();
+    if (mode === "daily") flushResults();
   } catch (error) {
     showNotice("The slate couldn't be loaded.", "error");
     $("#unavailable-message").textContent = error.message || "We couldn't reach Firebase. Try again, or play the practice slate.";
@@ -73,6 +81,7 @@ async function loadSlate(forcePractice = false) {
 function renderDashboard() {
   if (!puzzle) return;
   const done = GAMES.filter(game => states[game].done).length;
+  $("#slate-label").textContent = mode === "daily" ? "THE DAILY SLATE" : mode === "preview" ? "OWNER PREVIEW" : "PRACTICE SLATE";
   $("#completed-count").innerHTML = `${done}<span>/3</span>`;
   const longest = Math.max(0, ...GAMES.map(game => streakStats(allResults().filter(r => r.game === game), loadedDate).current));
   $("#streak-summary").textContent = mode === "daily" ? longest ? `${longest}-day streak · Keep showing up` : "Your next daily ritual starts here" : mode === "preview" ? "Owner preview · No streaks recorded" : "Practice makes a sharper sports fan";
@@ -101,6 +110,42 @@ function route() {
 function persist(game) {
   if (!saveGame(game, puzzle, mode, states[game])) toast("Progress couldn't be saved on this device. Keep this page open to continue.");
   renderDashboard();
+  if (mode === "daily" && states[game].done) flushResults();
+}
+
+function resultSyncMessage(game, date) {
+  if (resultRecorded(game, date)) return "Result recorded online. Progress and streaks stay on this device.";
+  if (resultErrors.has(`${date}:${game}`)) return "Saved on this device. Online score recording is unavailable; try again or return later.";
+  return "Saved on this device · Recording your result…";
+}
+
+function refreshResultMessages() {
+  for (const element of document.querySelectorAll("[data-result-sync]")) {
+    element.textContent = resultSyncMessage(element.dataset.resultSync, element.dataset.resultDate);
+  }
+  for (const button of document.querySelectorAll('[data-action="retry-results"]')) {
+    button.hidden = resultRecorded(button.dataset.game, button.dataset.date);
+    button.disabled = syncingResults;
+  }
+}
+
+async function flushResults() {
+  if (!configured || syncingResults) return;
+  syncingResults = true; refreshResultMessages();
+  const attempted = new Set();
+  try {
+    for (;;) {
+      const result = pendingResults().find(r => !attempted.has(`${r.date}:${r.game}`));
+      if (!result) break;
+      const key = `${result.date}:${result.game}`;
+      attempted.add(key); resultErrors.delete(key);
+      try {
+        await recordDailyResult(result);
+        markResultRecorded(result.game, result.date);
+      } catch { resultErrors.add(key); }
+      refreshResultMessages();
+    }
+  } finally { syncingResults = false; refreshResultMessages(); }
 }
 
 function answerForm(label, placeholder) {
@@ -115,7 +160,8 @@ function resultPanel(game, heading, description) {
   const nextLink = nextGame
     ? `<a class="button secondary" href="#${nextGame}" aria-label="Next game: ${GAME_NAMES[nextGame]}">Next game →</a>`
     : `<a class="button secondary" href="#">View today's results</a>`;
-  return `<div class="result-panel"><p class="eyebrow">${mode === "daily" ? "DAILY RESULT" : mode === "preview" ? "OWNER PREVIEW RESULT" : "PRACTICE RESULT"}</p><h2>${heading}</h2>${game === "cross" ? "" : `<div class="result-score">${state.score}<span>/${game === "player" ? 5 : 15}</span></div>`}<p>${description}</p><div class="button-row"><button class="button" data-action="share" data-game="${game}">Share your score ↗</button>${nextLink}</div></div>`;
+  const sync = mode === "daily" ? `<p class="fine-print" role="status" data-result-sync="${game}" data-result-date="${puzzle.date}">${resultSyncMessage(game, puzzle.date)}</p><button class="text-button" data-action="retry-results" data-game="${game}" data-date="${puzzle.date}" ${resultRecorded(game, puzzle.date) ? "hidden" : ""} ${syncingResults ? "disabled" : ""}>Retry score recording</button>` : "";
+  return `<div class="result-panel"><p class="eyebrow">${mode === "daily" ? "DAILY RESULT" : mode === "preview" ? "OWNER PREVIEW RESULT" : "PRACTICE RESULT"}</p><h2>${heading}</h2>${game === "cross" ? "" : `<div class="result-score">${state.score}<span>/${game === "player" ? 5 : 15}</span></div>`}<p>${description}</p><div class="button-row"><button class="button" data-action="share" data-game="${game}">Share your score ↗</button>${nextLink}</div>${sync}</div>`;
 }
 
 function renderPlayer() {
@@ -287,6 +333,7 @@ document.addEventListener("click", async event => {
   if (action === "reset-practice" && puzzle && mode !== "daily") {
     resetPractice(puzzle, mode); await loadSlate(mode === "practice"); toast("Practice slate reset. Play again.");
   }
+  if (action === "retry-results") flushResults();
   if (action === "share") {
     const game = button.dataset.game;
     const url = new URL("./index.html", location.href); url.hash = game;
@@ -331,4 +378,5 @@ function tick() {
 
 window.addEventListener("hashchange", () => { route(); window.scrollTo({ top: 0, behavior: "instant" }); });
 window.addEventListener("pageshow", event => { if (event.persisted) loadSlate(); });
+window.addEventListener("online", () => { if (mode === "daily") flushResults(); });
 await loadSlate(); tick(); setInterval(tick, 1000);

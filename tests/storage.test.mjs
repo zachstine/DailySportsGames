@@ -2,7 +2,8 @@ import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { newState, guessPlayer } from "../js/core.js";
-import { loadGame, saveGame, allResults, resetPractice, readLocal, writeLocal, gameKey, readPreview, writePreview, getDraft, saveDraft } from "../js/storage.js";
+import { loadGame, saveGame, allResults, resetPractice, readLocal, writeLocal, gameKey, readPreview, writePreview, getDraft, saveDraft,
+  pendingResults, markResultRecorded, resultRecorded } from "../js/storage.js";
 
 const sample = JSON.parse(readFileSync(new URL("../data/practice.json", import.meta.url)));
 let data;
@@ -37,6 +38,44 @@ test("practice and preview completions never write daily results", () => {
   const state = guessPlayer(newState("player", sample), sample, "Jordan");
   saveGame("player", sample, "practice", state); saveGame("player", sample, "preview", state);
   assert.deepEqual(allResults(), []);
+  assert.deepEqual(pendingResults(), []);
+});
+
+test("completed daily results stay queued across reloads until acknowledged", () => {
+  const state = guessPlayer(newState("player", sample), sample, "Jordan");
+  saveGame("player", sample, "daily", state);
+  assert.equal(pendingResults().length, 1);
+  assert.equal(resultRecorded("player", sample.date), false);
+  // Reopening a completed game must not submit a second completion.
+  saveGame("player", sample, "daily", loadGame("player", sample, "daily"));
+  assert.equal(pendingResults().length, 1);
+  assert.equal(markResultRecorded("player", sample.date), true);
+  saveGame("player", sample, "daily", state);
+  assert.deepEqual(pendingResults(), []);
+  assert.equal(resultRecorded("player", sample.date), true);
+  assert.equal(allResults().length, 1);
+});
+
+test("queued crossword results retain assistance counts and do not affect another game's acknowledgement", () => {
+  const state = { ...newState("cross", sample), done: true, won: true, score: 1, checks: 3, reveals: [0, 1] };
+  saveGame("cross", sample, "daily", state);
+  saveGame("player", sample, "daily", guessPlayer(newState("player", sample), sample, "Jordan"));
+  markResultRecorded("player", sample.date);
+  const [result] = pendingResults();
+  assert.equal(result.game, "cross");
+  assert.equal(result.checks, 3); assert.equal(result.reveals, 2);
+  assert.equal(resultRecorded("cross", sample.date), false);
+});
+
+test("earlier local daily records can sync without turning practice into daily results", () => {
+  writeLocal("results", [
+    { game: "player", date: sample.date, mode: "daily", done: true, won: true, score: 5 },
+    { game: "ladder", date: sample.date, mode: "practice", done: true, won: true, score: 15 },
+    { game: "cross", date: "bad-date", mode: "daily", done: true, won: true, score: 1 }
+  ]);
+  const results = pendingResults();
+  assert.equal(results.length, 1);
+  assert.equal(results[0].checks, 0); assert.equal(results[0].reveals, 0);
 });
 
 test("practice reset clears practice only and cannot reset a live daily score", () => {
