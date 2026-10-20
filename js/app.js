@@ -109,7 +109,13 @@ function answerForm(label, placeholder) {
 
 function resultPanel(game, heading, description) {
   const state = states[game];
-  return `<div class="result-panel"><p class="eyebrow">${mode === "daily" ? "DAILY RESULT" : mode === "preview" ? "OWNER PREVIEW RESULT" : "PRACTICE RESULT"}</p><h2>${heading}</h2>${game === "cross" ? "" : `<div class="result-score">${state.score}<span>/${game === "player" ? 5 : 15}</span></div>`}<p>${description}</p><div class="button-row"><button class="button" data-action="share" data-game="${game}">Share your score ↗</button><a class="button secondary" href="#">Next game</a></div></div>`;
+  const index = GAMES.indexOf(game);
+  const remaining = [...GAMES.slice(index + 1), ...GAMES.slice(0, index)];
+  const nextGame = remaining.find(next => !states[next].done);
+  const nextLink = nextGame
+    ? `<a class="button secondary" href="#${nextGame}" aria-label="Next game: ${GAME_NAMES[nextGame]}">Next game →</a>`
+    : `<a class="button secondary" href="#">View today's results</a>`;
+  return `<div class="result-panel"><p class="eyebrow">${mode === "daily" ? "DAILY RESULT" : mode === "preview" ? "OWNER PREVIEW RESULT" : "PRACTICE RESULT"}</p><h2>${heading}</h2>${game === "cross" ? "" : `<div class="result-score">${state.score}<span>/${game === "player" ? 5 : 15}</span></div>`}<p>${description}</p><div class="button-row"><button class="button" data-action="share" data-game="${game}">Share your score ↗</button>${nextLink}</div></div>`;
 }
 
 function renderPlayer() {
