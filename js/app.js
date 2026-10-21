@@ -152,7 +152,7 @@ function route() {
   document.title = `${GAME_NAMES[game]} — Daily Sports Games`;
   $("#game-title").textContent = GAME_NAMES[game];
   $("#game-edition").textContent = `${mode === "daily" ? puzzle.date : mode === "preview" ? "OWNER PREVIEW" : "PRACTICE SLATE"} / ${puzzle.title}`;
-  $("#game-description").textContent = { player: "One player. Five clues. Can you call it from one telling fact?", ladder: "Five questions. One guess each. Climb from the obvious to the obscure.", cross: "A little sports knowledge goes a long way. Fill the grid, one connection at a time." }[game];
+  $("#game-description").textContent = { player: "One player. Five clues. Can you call it from one telling fact?", ladder: "Five questions. One guess each. Climb from the obvious to the obscure.", cross: "A little sports knowledge goes a long way. Fill the grid, one cross at a time." }[game];
   if (game === "player") renderPlayer();
   if (game === "ladder") renderLadder();
   if (game === "cross") renderCross();
