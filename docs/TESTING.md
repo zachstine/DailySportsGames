@@ -28,6 +28,7 @@ Run `npm run check`, `npm test`, and `npm run build` first. Then use this short 
 - Try Google with a new credential, then an existing one. New credentials should link the guest. Existing credentials should open that account's separate record without deleting the guest or overwriting account scores.
 - Sign into an existing email/password account. Guest progress, streak records, and pending submissions must not appear as that account's results.
 - Sign out, then play as a fresh guest. The signed-out account's email, completed scores, and pending writes must not remain in the guest UI. The separate owner desk session should remain unchanged.
+- Keep a game tab and a second account tab open during sign-in/out. Within a few seconds, both should refresh into the new player session and show only that player's progress, even if Firebase delays its background-tab auth event.
 - Sign into the same account on another device. Today's submitted totals must restore and lock completed games. The site must not invent individual guesses or revealed-cell locations when only a total is available.
 - Cancel Google sign-in or enter an invalid password. Keep the current guest's saved progress and show a useful error. Verify the password field clears and no password is saved in local storage or Firestore.
 - Test Forgot password with an account you control; the UI should give a generic inbox message. Test account tabs, Enter submission, and arrow-key navigation.

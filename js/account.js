@@ -1,10 +1,18 @@
 import { dateKey, GAMES, GAME_NAMES } from "./core.js";
-import { setPlayerScope, importRecordedResults, allResults } from "./storage.js";
+import { setPlayerScope, importRecordedResults, allResults, readLocal, writeLocal } from "./storage.js";
 import { configured, connectPlayer, ensurePlayerProfile, playerResultsForDate,
   signInPlayerWithEmail, signInPlayerWithGoogle, signOutPlayer } from "./firebase.js";
 
 const $ = selector => document.querySelector(selector);
 let connection, creating = false, working = false, refreshVersion = 0;
+let accountRevision = readLocal("account-revision");
+const identity = user => user ? `${user.uid}:${user.isAnonymous}` : "signed-out";
+
+// Keep an already-open account page in step with sign-in/out elsewhere, even
+// when a browser delays Firebase's cross-tab auth event while backgrounded.
+setInterval(() => {
+  if (!working && readLocal("account-revision") !== accountRevision) location.reload();
+}, 1000);
 
 function message(text, warning = false) {
   $("#account-status").textContent = text;
@@ -88,10 +96,17 @@ function authError(error) {
 
 async function accountAction(action) {
   if (working || !connection) return;
+  const previousIdentity = identity(connection.auth.currentUser);
   working = true; controls();
   try { await action(); await refreshAccount(); }
   catch (error) { message(authError(error), true); }
-  finally { working = false; controls(); $("#player-password").value = ""; }
+  finally {
+    if (identity(connection.auth.currentUser) !== previousIdentity) {
+      accountRevision = `${Date.now()}:${Math.random()}`;
+      writeLocal("account-revision", accountRevision);
+    }
+    working = false; controls(); $("#player-password").value = "";
+  }
 }
 
 $("#mode-sign-in").addEventListener("click", () => setMode(false));

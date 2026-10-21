@@ -11,6 +11,7 @@ let loadedDate = dateKey(), shareText = "", toastTimer, busy = false, badLetters
 let practicePuzzle;
 let syncingResults = false;
 let playerConnection, playerUid = null, playerChangedDuringLoad = false;
+const accountRevision = readLocal("account-revision");
 const resultErrors = new Set();
 
 async function getPractice() {
@@ -404,6 +405,9 @@ document.addEventListener("click", async event => {
 });
 
 function tick() {
+  // Background tabs may delay Firebase's auth event. Reopen the persisted
+  // session after an explicit sign-in/out in another tab before resuming play.
+  if (readLocal("account-revision") !== accountRevision) { location.reload(); return; }
   const today = dateKey();
   $("#today-date").dateTime = today;
   $("#today-date").textContent = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short", month: "short", day: "numeric", year: "numeric" }).format(new Date());
