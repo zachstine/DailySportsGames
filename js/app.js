@@ -176,7 +176,7 @@ function persist(game) {
 }
 
 function resultSyncMessage(game, date) {
-  if (resultRecorded(game, date)) return "Result recorded online. Progress and streaks stay on this device.";
+  if (resultRecorded(game, date)) return "Finish all three games to send full results. Result recorded online. Progress and streaks stay on this device.";
   if (resultErrors.has(`${getPlayerScope()}:${date}:${game}`)) return "Saved on this device. Online score recording is unavailable; try again or return later.";
   return "Saved on this device · Recording your result…";
 }
