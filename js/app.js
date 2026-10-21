@@ -2,8 +2,9 @@ import { dateKey, shiftDate, releaseTime, GAME_NAMES, GAMES, buildCrossword, val
   guessPlayer, guessLadder, finishCrossword, streakStats, shareScore, shareSlate, stateFromRecordedResult,
   SolveTimer, validElapsedMs, formatDuration, gameScoreLabel } from "./core.js";
 import { loadGame, saveGame, allResults, storageAvailable, resetPractice, readPreview,
-  pendingResults, markResultRecorded, resultRecorded, setPlayerScope, getPlayerScope, importRecordedResults, readLocal } from "./storage.js";
+  pendingResults, markResultRecorded, resultRecorded, setPlayerScope, getPlayerScope, importRecordedResults, readLocal, readPreviewContext } from "./storage.js";
 import { configured, getDailyPuzzle, recordDailyResult, connectPlayer, playerResultsForDate, ensurePlayerProfile } from "./firebase.js";
+import { validCreatorName } from "./puzzles.js";
 
 const $ = selector => document.querySelector(selector);
 const escape = value => String(value ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
@@ -15,6 +16,8 @@ let playerConnection, playerUid = null, playerChangedDuringLoad = false;
 const accountRevision = readLocal("account-revision");
 const resultErrors = new Set();
 let crossTimer = null, crossTimerScope = null;
+let previewContext = null;
+const creditName = game => validCreatorName(puzzle?.credits?.[game]?.displayName) ? puzzle.credits[game].displayName : "";
 
 function checkpointCrossTime(save = true) {
   if (!crossTimer || !puzzle || !states.cross || crossTimerScope !== getPlayerScope()) return;
@@ -62,15 +65,16 @@ function showNotice(message, kind = "") {
 async function loadSlate(forcePractice = false) {
   if (busy) return;
   stopCrossTimer(); crossTimer = null;
-  busy = true; puzzle = null; states = {}; loadedDate = dateKey();
+  busy = true; puzzle = null; states = {}; loadedDate = dateKey(); previewContext = null;
   $("#home-view").hidden = true; $("#game-view").hidden = true; $("#unavailable-view").hidden = true;
   showNotice("Loading the slate…");
   try {
     const params = new URLSearchParams(location.search);
     if (params.has("preview") && !forcePractice) {
       puzzle = readPreview(); mode = "preview";
+      previewContext = readPreviewContext();
       if (!puzzle || validatePuzzle(puzzle).length) throw new Error("The owner preview expired or is invalid. Return to the owner desk and preview again.");
-      showNotice("Owner preview · Test freely. This doesn't count toward daily streaks.");
+      showNotice(previewContext ? "Puzzle preview · Test freely. Your daily scores and streaks are unaffected." : "Owner preview · Test freely. This doesn't count toward daily streaks.");
     } else if (forcePractice || params.has("practice") || !configured) {
       puzzle = await getPractice(); mode = "practice";
       showNotice(configured ? "Practice slate · Sample games. Daily streaks are unaffected." : "Demo mode · Try all three practice games. Daily publishing opens when Firebase is connected.");
@@ -145,13 +149,19 @@ function renderDashboard() {
 function route() {
   if (!puzzle) return;
   syncCrossTimer();
-  const game = location.hash.slice(1);
+  let game = location.hash.slice(1);
+  if (mode === "preview" && previewContext && game !== previewContext.game) { game = previewContext.game; history.replaceState(null, "", `#${game}`); }
   const inGame = GAMES.includes(game);
   $("#home-view").hidden = inGame; $("#game-view").hidden = !inGame; $("#unavailable-view").hidden = true;
   if (!inGame) { document.title = "Daily Sports Games — Your daily sports fix"; renderDashboard(); return; }
   document.title = `${GAME_NAMES[game]} — Daily Sports Games`;
   $("#game-title").textContent = GAME_NAMES[game];
-  $("#game-edition").textContent = `${mode === "daily" ? puzzle.date : mode === "preview" ? "OWNER PREVIEW" : "PRACTICE SLATE"} / ${puzzle.title}`;
+  $("#game-credit").textContent = creditName(game) ? `Submitted by ${creditName(game)}` : "";
+  $("#game-credit").hidden = !creditName(game);
+  const back = $("#game-back-link");
+  back.href = previewContext ? previewContext.href : "#";
+  back.textContent = previewContext ? previewContext.href === "./create/" ? "← Back to puzzle creator" : "← Back to submission review" : "← All games";
+  $("#game-edition").textContent = `${mode === "daily" ? puzzle.date : mode === "preview" ? previewContext ? "PUZZLE PREVIEW" : "OWNER PREVIEW" : "PRACTICE SLATE"} / ${puzzle.title}`;
   $("#game-description").textContent = { player: "One player. Five clues. Can you call it from one telling fact?", ladder: "Five questions. One guess each. Climb from the obvious to the obscure.", cross: "A little sports knowledge goes a long way. Fill the grid, one cross at a time." }[game];
   if (game === "player") renderPlayer();
   if (game === "ladder") renderLadder();
@@ -214,14 +224,15 @@ function resultPanel(game, heading, description) {
   const index = GAMES.indexOf(game);
   const remaining = [...GAMES.slice(index + 1), ...GAMES.slice(0, index)];
   const nextGame = remaining.find(next => !states[next].done);
-  const nextLink = nextGame
+  const nextLink = previewContext ? `<a class="button secondary" href="${previewContext.href}">Back to ${previewContext.href === "./create/" ? "puzzle creator" : "submission review"}</a>` : nextGame
     ? `<a class="button secondary" href="#${nextGame}" aria-label="Next game: ${GAME_NAMES[nextGame]}">Next game →</a>`
     : `<a class="button secondary" href="#">View today's results</a>`;
   const sync = mode === "daily" ? `<p class="fine-print" role="status" data-result-sync="${game}" data-result-date="${puzzle.date}">${resultSyncMessage(game, puzzle.date)}</p><button class="text-button" data-action="retry-results" data-game="${game}" data-date="${puzzle.date}" ${resultRecorded(game, puzzle.date) ? "hidden" : ""} ${syncingResults ? "disabled" : ""}>Retry score recording</button>` : "";
   const score = game === "cross" ? validElapsedMs(state.elapsedMs) ? `<div class="result-score">${formatDuration(state.elapsedMs)}<span class="result-time-label">SOLVE TIME</span></div>` : "" : `<div class="result-score">${state.score}<span>/${game === "player" ? 5 : 15}</span></div>`;
-  const allDone = GAMES.every(game => states[game].done);
+  const allDone = !previewContext && GAMES.every(game => states[game].done);
   const shareAll = allDone ? `<button class="button" data-action="share-all">Share all scores ↗</button>` : "";
-  return `<div class="result-panel"><p class="eyebrow">${mode === "daily" ? "DAILY RESULT" : mode === "preview" ? "OWNER PREVIEW RESULT" : "PRACTICE RESULT"}</p><h2>${heading}</h2>${score}<p>${description}</p><div class="button-row">${shareAll}<button class="button${allDone ? " secondary" : ""}" data-action="share" data-game="${game}">Share your score ↗</button>${nextLink}</div>${sync}</div>`;
+  const shareSingle = previewContext ? "" : `<button class="button${allDone ? " secondary" : ""}" data-action="share" data-game="${game}">Share your score ↗</button>`;
+  return `<div class="result-panel"><p class="eyebrow">${mode === "daily" ? "DAILY RESULT" : mode === "preview" ? "PREVIEW RESULT" : "PRACTICE RESULT"}</p><h2>${heading}</h2>${creditName(game) ? `<p class="creator-credit">Submitted by ${escape(creditName(game))}</p>` : ""}${score}<p>${description}</p><div class="button-row">${shareAll}${shareSingle}${nextLink}</div>${sync}</div>`;
 }
 
 function renderPlayer() {

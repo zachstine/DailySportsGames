@@ -40,7 +40,7 @@ Run `npm run check`, `npm test`, and `npm run build` first. Then use this short 
 
 - With blank Firebase config, local editing, draft saving, JSON export/import, and previews should work. Cloud save/publish should be disabled.
 - Sign in with the owner account and load a new future date. Save a private draft. Reload it from the sidebar; all three games should match.
-- Export the slate, change a clue, and import the exported copy. Check the date, questions, crossword, and aliases restore correctly. Load its date and confirm imported content stays in the editor.
+- Export a selected game, change a clue, and import the copy into a loaded future date. Confirm the replacement dialog names the game and date, and the other two games and their credits remain intact. Import the three games one by one into a new date; all three must coexist.
 - Import malformed JSON, a file larger than 60 KB, or a conflicting crossword. The editor should keep its previous content and show the issue.
 - Make two entries cross with mismatched letters, put an answer outside the grid, add an unclued touching word, and create a disconnected word. Validation should reject each before saving.
 - Load a future date, edit it, then preview from the owner desk and complete a game. It should say Owner preview and leave daily streaks unchanged. Return to the desk; the same date, working copy, and loaded revision should be restored.
@@ -88,3 +88,20 @@ Use Firebase's authenticated and unauthenticated rule simulations (or the Emulat
 `updatedAt` and result `completedAt` must be server timestamps matching the request time. `unlockAt` is a Firestore timestamp computed by the owner editor for Eastern midnight. Result document IDs must be `{auth UID}_{date}_{game}`; duplicate attempts cannot overwrite an accepted result. The owner is a trusted content author; the editor validates all game fields before writing, while rules enforce access, revision, release, immutability, and the top-level document shape. A malicious account with actual owner authorization is not a threat the client editor can prevent; remove its owner document in the Console if access must be revoked. Client scores are appropriate for this friendly demo and are not server-verified for competitive play.
 
 For rollover testing, use the emulator or a temporary separate development project. Avoid changing your computer clock or unlocking real future puzzles just to test: the browser and Firestore server have different clocks. Automated tests already cover Eastern dates and both daylight saving transitions.
+
+
+## Community workflow
+
+- Create each of the three game types at `create/`. Reorder Player Guess clues and Stat Ladder questions. Build a connected crossword with both directions; try a conflicting intersection and an unclued touching word. Preview must use the existing engine and return to the saved draft. Reopening a preview should start a fresh test.
+- Submit each valid game as a guest. Confirm a Firestore `submissions` document with a random ID, original name, canonical puzzle JSON, server time, `pending` status, and player UID. Confirmation must never publish or replace a daily puzzle.
+- Submit again within a minute, then try more than five suggestions in 24 hours. The paired limit/submission transaction must be denied; the browser draft must survive.
+- Open `admin/submissions/` signed out or as a nonowner. No queue or answers should load. Owner sign-in should reveal the queue; game/status filters and older pages must work. Signing out must clear the private details from the UI.
+- Edit a proposed name and puzzle, save/approve, then copy/download. Export must contain exactly one game, only the approved name, and the submission ID. Original submitted name/content must remain private and unchanged. Reject an invalid suggestion without needing to parse its original JSON.
+- Import the approved player, ladder, and crossword into one unused future QA date. Check the actual Firestore document after every import. Replace only Stat Ladder with explicit confirmation; the Player Guess/CrossSport fields, creator credits, and publication settings must be byte-for-byte equivalent.
+- Keep unsaved edits to a different game while importing one slot. Those edits must remain in the editor and local draft, without entering the per-game Firebase write. A stale revision must fail before overwriting a newer date.
+- Publish/schedule the completed QA slate; linked suggestions should become Published with the assigned date. A public read before its release must be denied. Return the QA date to a private draft after the test.
+- Correct an approved public name through review and the owner credit-only action. Verify linked credits update and original names remain private. Simulate a released slate: credit-only updates should pass, while any answer/clue or release-setting change must fail.
+- Check credited game headers and completion panels in preview and released play. Try HTML/script characters and overlength names: reject them; never interpret any submitted text as markup. No name means the normal title without a credit.
+- Recheck today's original slate, optional login, daily results, streaks, crossword timing, and individual/combined sharing. This feature must not change existing live puzzle content or stored results.
+
+Additional rule simulations: signed-out and nonowner reads/listing of submissions must fail; public review/status edits must fail; creating a submission without its atomic matching limit update must fail; resetting/deleting a limit or bypassing its cooldown/quota must fail. Only owners may edit review fields, creator credits, or game assignments.

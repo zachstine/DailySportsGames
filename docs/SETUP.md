@@ -104,3 +104,14 @@ The target is **$0/month** for this friend demo: public GitHub Pages, Spark Fire
 Keep the project on Spark for the demo. Quota exhaustion can stop Firebase operations instead of increasing a bill. Cloud Functions, a Cloud Storage bucket, paid sports APIs, syncing unfinished games, and a trusted leaderboard are outside this version. JSON “upload” means reading a local file in the browser and writing a validated Firestore document; it doesn't use Cloud Storage.
 
 Reference: [Firebase pricing plans](https://firebase.google.com/docs/projects/billing/firebase-pricing-plans), [Firestore quotas](https://firebase.google.com/docs/firestore/quotas), [Pages publishing source](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site).
+
+
+## Community creator and private review
+
+The public creator is at `create/`; the private owner review page is at `admin/submissions/`. Both are included in the Pages build. No new Firebase provider, billing plan, Cloud Function, or paid service is required. Existing Anonymous Authentication and the owner list are reused.
+
+Publish the updated `firestore.rules` from this repository before enabling the creator. These rules add private `submissions`, per-UID `submissionLimits`, partial private daily drafts, and owner-only credit corrections. Never use temporary public read/write rules. Existing `dailyPuzzles`, `results`, `owners`, and `users` documents need no migration.
+
+Review loads 50 suggestions at a time ordered by creation time and applies its game/status filters to loaded suggestions. **Load older submissions** includes earlier pages. This uses the automatic single-field index; no composite index setup is required.
+
+See [COMMUNITY.md](COMMUNITY.md) for the one-game JSON contract and the review → copy → import → schedule workflow.

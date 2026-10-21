@@ -1,6 +1,7 @@
 export const TIME_ZONE = "America/New_York";
 export const GAMES = ["player", "ladder", "cross"];
 export const GAME_NAMES = { player: "Player Guess", ladder: "Stat Ladder", cross: "CrossSport" };
+export const GAME_FIELDS = { player: "playerGuess", ladder: "statLadder", cross: "crossSport" };
 
 export function validElapsedMs(value) {
   return Number.isSafeInteger(value) && value >= 0;
@@ -174,20 +175,20 @@ function answerErrors(question, prefix) {
   return errors;
 }
 
-export function validatePuzzle(puzzle) {
-  if (!puzzle || typeof puzzle !== "object" || Array.isArray(puzzle)) return ["The puzzle file must be a JSON object."];
+export function validateGame(game, data) {
+  if (!GAMES.includes(game)) return ["Choose Player Guess, Stat Ladder, or CrossSport."];
+  if (!data || typeof data !== "object" || Array.isArray(data)) return [`${GAME_NAMES[game]} needs a puzzle object.`];
   const errors = [];
-  if (puzzle.schemaVersion !== 1) errors.push("schemaVersion must be 1.");
-  if (!validDate(puzzle.date)) errors.push("Choose a valid release date (YYYY-MM-DD). ");
-  if (!text(puzzle.title, 120)) errors.push("Add a daily title (maximum 120 characters). ");
-  errors.push(...answerErrors(puzzle.playerGuess, "Player Guess"));
-  if (!text(puzzle.playerGuess?.sport, 30)) errors.push("Player Guess: add a sport or league (maximum 30 characters). ");
-  if (!Array.isArray(puzzle.playerGuess?.hints) || puzzle.playerGuess.hints.length !== 5 || puzzle.playerGuess.hints.some(x => !text(x, 500))) {
-    errors.push("Player Guess needs exactly five nonempty hints, each at most 500 characters.");
+  const fields = { player: ["answer", "sport", "aliases", "hints"], ladder: ["questions"], cross: ["size", "entries"] };
+  if (Object.keys(data).some(key => !fields[game].includes(key))) errors.push(`${GAME_NAMES[game]} contains an unexpected field.`);
+  if (game === "player") {
+    errors.push(...answerErrors(data, "Player Guess"));
+    if (!text(data.sport, 30)) errors.push("Player Guess: add a sport or league (maximum 30 characters). ");
+    if (!Array.isArray(data.hints) || data.hints.length !== 5 || data.hints.some(x => !text(x, 500))) errors.push("Player Guess needs exactly five nonempty hints, each at most 500 characters.");
   }
-  if (!Array.isArray(puzzle.statLadder?.questions) || puzzle.statLadder.questions.length !== 5) {
+  if (game === "ladder" && (!Array.isArray(data.questions) || data.questions.length !== 5)) {
     errors.push("Stat Ladder needs exactly five questions, ordered easy to hard.");
-  } else for (const [i, question] of puzzle.statLadder.questions.entries()) {
+  } else if (game === "ladder") for (const [i, question] of data.questions.entries()) {
     errors.push(...answerErrors(question, `Stat Ladder question ${i + 1}`));
     if (!text(question?.question, 500)) errors.push(`Stat Ladder question ${i + 1}: add a question (maximum 500 characters).`);
     if (!text(question?.sport, 30)) errors.push(`Stat Ladder question ${i + 1}: add a sport or league.`);
@@ -196,7 +197,18 @@ export function validatePuzzle(puzzle) {
       if (url.protocol !== "https:") throw new Error();
     } catch { errors.push(`Stat Ladder question ${i + 1}: add an https source URL to verify the statistic.`); }
   }
-  errors.push(...buildCrossword(puzzle.crossSport).errors);
+  if (game === "cross") errors.push(...buildCrossword(data).errors);
+  if (JSON.stringify(data).length > 50000) errors.push("A single game must be smaller than 50 KB.");
+  return errors;
+}
+
+export function validatePuzzle(puzzle) {
+  if (!puzzle || typeof puzzle !== "object" || Array.isArray(puzzle)) return ["The puzzle file must be a JSON object."];
+  const errors = [];
+  if (puzzle.schemaVersion !== 1) errors.push("schemaVersion must be 1.");
+  if (!validDate(puzzle.date)) errors.push("Choose a valid release date (YYYY-MM-DD). ");
+  if (!text(puzzle.title, 120)) errors.push("Add a daily title (maximum 120 characters). ");
+  for (const game of GAMES) errors.push(...validateGame(game, puzzle[GAME_FIELDS[game]]));
   if (JSON.stringify(puzzle).length > 60000) errors.push("The puzzle file must be smaller than 60 KB.");
   return errors;
 }

@@ -1,5 +1,6 @@
 import { firebaseConfig } from "../firebase-config.js";
 import { releaseTime, validatePuzzle, validDate, validDailyResult } from "./core.js";
+import { persistOwnerSlate } from "./community.js";
 
 export const configured = Boolean(firebaseConfig.apiKey && firebaseConfig.projectId && firebaseConfig.appId);
 const SDK = "https://www.gstatic.com/firebasejs/13.0.0";
@@ -23,7 +24,7 @@ export async function getDailyPuzzle(date) {
   if (!data.published || data.unlockAt.toMillis() > Date.now()) return null;
   const errors = validatePuzzle(data.puzzle);
   if (errors.length || data.puzzle.date !== date) throw new Error("Today's puzzle needs an owner correction. Please try again later.");
-  return data.puzzle;
+  return { ...data.puzzle, credits: data.credits || {} };
 }
 
 export async function connectOwner() {
@@ -157,28 +158,7 @@ export async function loadOwnerPuzzle(connection, date) {
 }
 
 export async function saveOwnerPuzzle(connection, puzzle, publish, expectedRevision) {
-  const errors = validatePuzzle(puzzle);
-  if (errors.length) throw new Error(errors.join("\n"));
-  const { db, store, auth } = connection;
-  const reference = store.doc(db, "dailyPuzzles", puzzle.date);
-  return store.runTransaction(db, async transaction => {
-    const old = await transaction.get(reference);
-    const data = old.exists() ? old.data() : null;
-    if ((data?.revision ?? 0) !== expectedRevision) {
-      throw new Error("This date changed in another tab or is already scheduled. Use Load date before saving over it.");
-    }
-    // Published, already released puzzles are immutable: daily scores stay comparable.
-    if (data?.published && data.unlockAt.toMillis() <= Date.now()) {
-      throw new Error("This puzzle is already live. Keep today's games fixed and prepare another date.");
-    }
-    const revision = (data?.revision ?? 0) + 1;
-    transaction.set(reference, {
-      date: puzzle.date, puzzle, published: publish,
-      unlockAt: store.Timestamp.fromMillis(releaseTime(puzzle.date)),
-      updatedAt: store.serverTimestamp(), updatedBy: auth.currentUser.uid, revision
-    });
-    return revision;
-  });
+  return persistOwnerSlate(connection, puzzle, publish, expectedRevision);
 }
 
 export async function upcomingPuzzles(connection, today) {

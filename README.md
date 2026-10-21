@@ -1,6 +1,6 @@
 # Daily Sports Games
 
-Three mobile-friendly daily games, built with HTML, CSS, and JavaScript. GitHub Pages serves the website; Firebase Authentication and Cloud Firestore power an owner-only puzzle desk. No production npm dependencies, paid sports API, Cloud Functions, or storage bucket are needed.
+Three mobile-friendly daily games, built with HTML, CSS, and JavaScript. GitHub Pages serves the website; Firebase Authentication and Cloud Firestore power optional player accounts, a private puzzle review queue, and the owner puzzle desk. No production npm dependencies, paid sports API, Cloud Functions, or storage bucket are needed.
 
 ## Run it locally
 
@@ -34,6 +34,9 @@ If today's slate hasn't been published, the home page shows clearly labeled prac
 | --- | --- |
 | Drafts and published daily slates | Firestore `dailyPuzzles/{YYYY-MM-DD}` |
 | Owner publishing permission | Firestore `owners/{Firebase Auth UID}` with `enabled: true` |
+| Community suggestions and private review | Firestore `submissions/{auto ID}` |
+| Per-player suggestion limits | Firestore `submissionLimits/{Firebase Auth UID}` |
+| Public creator names | Optional `credits` map on the dated Firestore slate |
 | Registered player membership | Firestore `users/{Firebase Auth UID}` with immutable `role: "user"` |
 | Completed daily scores | Firestore `results/{player UID}_{date}_{game}` |
 | Partial progress, streaks, practice scores, and retry queue | This browser's local storage |
@@ -56,16 +59,20 @@ Follow **[docs/SETUP.md](docs/SETUP.md)** for Firebase, owner access, Firestore 
 
 The free demo uses a public repository with GitHub Pages and the Firebase **Spark** plan. Keep the Firebase project on Spark to avoid usage charges. If you exhaust no-cost quotas, service availability can be limited; Spark does not automatically upgrade to paid billing. Do not attach a billing account just for this MVP.
 
-## Owner workflow
+## Community puzzles and owner workflow
 
-1. Open `admin.html`. Sign in with Google or Firebase Email/Password. Your account's UID must be listed in `owners/{uid}` with `enabled: true`.
-2. Choose a date and click **Load date**. Existing cloud drafts take priority over device drafts. An imported file stays in the editor when its date is checked.
-3. Edit the five Player Guess clues, five Stat Ladder questions, and crossword entries. Editor rows/columns start at **1**; exported JSON coordinates start at **0**.
-4. **Validate**, then **Preview all three games**. Preview opens the game site in the same tab and never changes daily records. Return using the owner link.
-5. **Save Firebase draft** or **Publish / schedule slate**. Drafts and future scheduled documents are unreadable to public visitors. A scheduled document becomes readable at its Eastern midnight without a scheduled job. You must prepare and publish the content; the app doesn't generate it for you.
-6. Once a published slate has released, it is **locked against edits** in both the UI and Firestore rules. Prepare a different date for changes. Two editors cannot silently overwrite each other's changes: the cloud revision must match.
+Open **`create/`** from **Create a Puzzle** on the home page. Friends choose Player Guess, Stat Ladder, or CrossSport, fill a game-specific form, preview the actual game, and submit for private review. No account form or JSON knowledge is required. Anonymous play and owner sign-in remain separate.
 
-Anyone can view the editor shell and use its local features. Only Firestore rules authorize cloud publishing; an obscured URL or client-side password is not used for protection. Owner accounts are provisioned manually in Firebase; there is no public “make me an owner” flow.
+1. Sign in through **`admin.html`** with the owner account. Open **Review submissions** (`admin/submissions/`). Only the existing `owners/{uid}` permission grants access.
+2. Review the proposed name and puzzle. Edit the public name and content, preview, then **Approve**. Approval does not publish anything. Copy or download the approved game JSON.
+3. At the owner desk choose a date and **Load date**. Paste the approved JSON or upload the one-game file. **Import game to this date** saves only that game and its creator credit. Existing slots require a confirmation naming the game and date; stale revisions are rejected.
+4. Import the other two games for the same date. Missing games remain blank in a private draft; existing games and unsaved edits to other games are retained. A single-game import never replaces the entire puzzle map.
+5. Validate and preview the complete slate, then **Publish / schedule slate**. All three games are required. A future slate releases at Eastern midnight; released puzzle content stays locked.
+6. Correct a creator name at any time using **Save creator names only**, or save the approved name in submission review. Linked public credits update without changing a live answer or clue. Original submitted names remain private in the review queue.
+
+The owner desk now exports **one selected game** at a time. Older full-slate JSON backups are rejected by the single-game importer rather than silently replacing three games. Existing Firestore slates, scores, local game keys, and player accounts remain compatible; no data migration is needed.
+
+See **[docs/COMMUNITY.md](docs/COMMUNITY.md)** for schemas, privacy rules, rate limits, and deployment details. Valid examples are in **[docs/examples](docs/examples)**; they reuse the existing sample puzzles and are not published automatically.
 
 ## Checks
 
@@ -88,7 +95,10 @@ Browser/device QA and Firebase rules tests need the manual checks in **[docs/TES
 - `js/storage.js`: local progress, drafts, and previews.
 - `js/firebase.js`, `firebase-config.js`: lazy-loaded Firebase browser integration.
 - `firestore.rules`, `firebase.json`: owner access and scheduled read protections.
-- `data/practice.json`: sample slate and import/export format.
+- `create/`, `admin/submissions/`, `js/game-editor.js`, `css/community.css`: public creation and private owner review.
+- `js/puzzles.js`, `js/community.js`: single-game imports, approvals, credits, and submission transactions.
+- `data/practice.json`: bundled practice slate.
+- `docs/COMMUNITY.md`, `docs/examples/`: submission workflow, single-game schemas, and valid examples.
 - `.github/workflows/pages.yml`: continuous checks and Pages deployment.
 
 References: [GitHub Pages](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages), [Firebase pricing plans](https://firebase.google.com/docs/projects/billing/firebase-pricing-plans), [Firestore quotas](https://firebase.google.com/docs/firestore/quotas), [Firebase web setup](https://firebase.google.com/docs/web/setup), [Firestore security conditions](https://firebase.google.com/docs/firestore/security/rules-conditions).

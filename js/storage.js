@@ -117,9 +117,16 @@ export function resetPractice(puzzle, mode) {
 export function getDraft(date = dateKey()) { return readLocal(`draft:${date}`); }
 export function saveDraft(puzzle) { return writeLocal(`draft:${puzzle.date}`, puzzle); }
 
-export function writePreview(puzzle) {
-  try { sessionStorage.setItem("dsg:preview", JSON.stringify(puzzle)); return true; }
+export function writePreview(puzzle, context = null) {
+  try { sessionStorage.setItem("dsg:preview", JSON.stringify(puzzle)); sessionStorage.setItem("dsg:preview-context", JSON.stringify(context)); return true; }
   catch { return false; }
+}
+
+export function readPreviewContext() {
+  try {
+    const value = JSON.parse(sessionStorage.getItem("dsg:preview-context") || "null");
+    return value && ["./create/", "./admin/submissions/"].includes(value.href) && GAMES.includes(value.game) ? value : null;
+  } catch { return null; }
 }
 
 export function readPreview() {
