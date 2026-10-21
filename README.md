@@ -84,7 +84,7 @@ npm run build
 
 The tests cover scoring, guess limits, aliases, crossword geometry, sharing, refresh persistence, queued result retries, duplicate submissions, account isolation, guest linking, restored totals, date changes, streaks, storage failures, and daylight saving transitions. `check` verifies JavaScript syntax, local HTML assets, duplicate IDs, JSON, and the example slate. `build` creates a static hosting allowlist in `dist/` and versions local scripts, their imports, and styles together to prevent stale modules after deployment.
 
-Browser/device QA and Firebase rules tests need the manual checks in **[docs/TESTING.md](docs/TESTING.md)**. This code has no authenticated server-side answer checking: a technically inclined player can inspect the answers to an available puzzle in browser developer tools. Future Firebase puzzles remain protected by read rules, but this is a friendly demo, not a prize competition or trusted leaderboard.
+Browser/device QA and Firebase rules tests need the manual checks in **[docs/TESTING.md](docs/TESTING.md)**. The completed community workflow checks and remaining device checks are recorded in [docs/QA.md](docs/QA.md). This code has no authenticated server-side answer checking: a technically inclined player can inspect the answers to an available puzzle in browser developer tools. Future Firebase puzzles remain protected by read rules, but this is a friendly demo, not a prize competition or trusted leaderboard.
 
 ## Project layout
 
