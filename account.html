@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#142b28">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Your account — Daily Sports Games</title>
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./css/styles.css">
+  <link rel="stylesheet" href="./css/account.css">
+  <script type="module" src="./js/account.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to account</a>
+  <header class="site-header"><div class="header-inner"><a class="brand" href="./index.html"><span class="brand-mark">d<span>sg</span></span><span>daily<span class="brand-light">sports</span>games<span class="brand-dot">.</span></span></a><nav aria-label="Account navigation"><a href="./index.html">← Back to games</a></nav></div></header>
+  <main id="main" class="shell account-shell">
+    <div class="account-heading"><p class="eyebrow">YOUR PLACE ON THE SCOREBOARD</p><h1>Your account<span class="brand-dot">.</span></h1><p>Play as a guest. Sign in when you want your finished scores to stay with an account.</p></div>
+    <p id="account-status" class="notice" role="status">Checking your player session…</p>
+    <div class="account-layout">
+      <section class="account-panel" aria-labelledby="account-title">
+        <div class="account-panel-top"><h2 id="account-title">Keep your scores.</h2><span id="account-badge" class="pill">GUEST</span></div>
+        <div id="guest-options">
+          <p class="fine-print">No account is needed to play. A new account keeps this guest's scores. Signing in to an existing account opens its separate record.</p>
+          <button id="player-google" class="button secondary account-wide" disabled>Continue with Google</button>
+          <div class="auth-divider"><span>or use email</span></div>
+          <div class="auth-tabs" role="tablist" aria-label="Email account action"><button id="mode-sign-in" role="tab" aria-selected="true" aria-controls="email-panel">Sign in</button><button id="mode-create" role="tab" aria-selected="false" aria-controls="email-panel" tabindex="-1">Create account</button></div>
+          <div id="email-panel" role="tabpanel" aria-labelledby="mode-sign-in">
+            <form id="player-email-form">
+              <label for="player-email">Email</label><input id="player-email" type="email" autocomplete="username" maxlength="254" required>
+              <label for="player-password">Password</label><input id="player-password" type="password" autocomplete="current-password" required>
+              <p id="password-help" class="fine-print" hidden>Use at least 6 characters.</p>
+              <button id="email-submit" class="button account-wide" type="submit" disabled>Sign in</button>
+            </form>
+            <button id="password-reset" class="text-button" disabled>Forgot password?</button>
+          </div>
+          <a class="guest-link" href="./index.html">Keep playing as a guest →</a>
+        </div>
+        <div id="signed-in-options" hidden>
+          <p id="player-identity" class="player-identity"></p>
+          <p class="fine-print">Your finished daily scores are saved to this account. Streaks, individual guesses, and unfinished puzzles stay on this device.</p>
+          <div class="button-row"><a class="button" href="./index.html">Play today's games →</a><button id="player-sign-out" class="button secondary">Sign out</button></div>
+          <p class="fine-print account-signout-note">Signing out returns you to a fresh guest. Your account's saved scores stay private.</p>
+        </div>
+      </section>
+      <section class="account-panel account-today" aria-labelledby="today-title">
+        <div class="account-panel-top"><div><p class="eyebrow" id="account-date"></p><h2 id="today-title">Today's saved scores</h2></div><button id="refresh-account" class="text-button" disabled>Refresh</button></div>
+        <p class="fine-print">Your scores aren't public. Practice and owner previews stay separate.</p>
+        <div id="account-results"><p class="fine-print">Loading your saved scores…</p></div>
+        <a class="guest-link" href="./index.html">Back to the daily slate ↗</a>
+      </section>
+    </div>
+  </main>
+  <footer class="site-footer shell"><span class="footer-brand">A fresh slate. Every day.</span><a href="./admin.html">Owner desk ↗</a></footer>
+</body>
+</html>

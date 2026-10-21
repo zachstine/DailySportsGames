@@ -1,8 +1,8 @@
 import { dateKey, shiftDate, releaseTime, GAME_NAMES, GAMES, buildCrossword, validatePuzzle,
-  guessPlayer, guessLadder, finishCrossword, streakStats, shareScore } from "./core.js";
+  guessPlayer, guessLadder, finishCrossword, streakStats, shareScore, stateFromRecordedResult } from "./core.js";
 import { loadGame, saveGame, allResults, storageAvailable, resetPractice, readPreview,
-  pendingResults, markResultRecorded, resultRecorded } from "./storage.js";
-import { configured, getDailyPuzzle, recordDailyResult } from "./firebase.js";
+  pendingResults, markResultRecorded, resultRecorded, setPlayerScope, getPlayerScope, importRecordedResults, readLocal } from "./storage.js";
+import { configured, getDailyPuzzle, recordDailyResult, connectPlayer, playerResultsForDate, ensurePlayerProfile } from "./firebase.js";
 
 const $ = selector => document.querySelector(selector);
 const escape = value => String(value ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
@@ -10,6 +10,7 @@ let puzzle, mode = "practice", states = {}, crossword, activeEntry = 0, activeCe
 let loadedDate = dateKey(), shareText = "", toastTimer, busy = false, badLetters = new Set();
 let practicePuzzle;
 let syncingResults = false;
+let playerConnection, playerUid = null, playerChangedDuringLoad = false;
 const resultErrors = new Set();
 
 async function getPractice() {
@@ -67,6 +68,22 @@ async function loadSlate(forcePractice = false) {
       states[game] = loadGame(game, puzzle, mode);
       if (mode === "daily" && states[game].done) saveGame(game, puzzle, mode, states[game]);
     }
+    if (mode === "daily" && playerConnection?.auth.currentUser) {
+      const uid = playerConnection.auth.currentUser.uid;
+      try {
+        const records = await playerResultsForDate(playerConnection, puzzle.date);
+        if (uid !== playerUid) { playerChangedDuringLoad = true; return; }
+        importRecordedResults(records);
+        for (const record of records) {
+          const state = states[record.game];
+          if (!state.done || state.score !== record.score || record.game === "cross" &&
+            (state.checks !== record.checks || (state.revealCount ?? state.reveals.length) !== record.reveals)) {
+            states[record.game] = stateFromRecordedResult(record, puzzle);
+          }
+          saveGame(record.game, puzzle, mode, states[record.game]);
+        }
+      } catch { /* Local play and queued scores still work during a network failure. */ }
+    }
     $("#reset-practice").hidden = mode === "daily";
     if (!storageAvailable) showNotice("Browser storage is unavailable. Games work, but progress and streaks won't survive a refresh.", "warning");
     renderDashboard(); route();
@@ -75,7 +92,10 @@ async function loadSlate(forcePractice = false) {
     showNotice("The slate couldn't be loaded.", "error");
     $("#unavailable-message").textContent = error.message || "We couldn't reach Firebase. Try again, or play the practice slate.";
     $("#unavailable-view").hidden = false;
-  } finally { busy = false; }
+  } finally {
+    busy = false;
+    if (playerChangedDuringLoad) { playerChangedDuringLoad = false; queueMicrotask(() => loadSlate(forcePractice)); }
+  }
 }
 
 function renderDashboard() {
@@ -115,7 +135,7 @@ function persist(game) {
 
 function resultSyncMessage(game, date) {
   if (resultRecorded(game, date)) return "Result recorded online. Progress and streaks stay on this device.";
-  if (resultErrors.has(`${date}:${game}`)) return "Saved on this device. Online score recording is unavailable; try again or return later.";
+  if (resultErrors.has(`${getPlayerScope()}:${date}:${game}`)) return "Saved on this device. Online score recording is unavailable; try again or return later.";
   return "Saved on this device · Recording your result…";
 }
 
@@ -130,22 +150,27 @@ function refreshResultMessages() {
 }
 
 async function flushResults() {
-  if (!configured || syncingResults) return;
+  if (!configured || syncingResults || !playerUid) return;
   syncingResults = true; refreshResultMessages();
+  const scope = getPlayerScope();
   const attempted = new Set();
   try {
     for (;;) {
-      const result = pendingResults().find(r => !attempted.has(`${r.date}:${r.game}`));
+      if (scope !== getPlayerScope()) break;
+      const result = pendingResults(scope).find(r => !attempted.has(`${r.date}:${r.game}`));
       if (!result) break;
       const key = `${result.date}:${result.game}`;
-      attempted.add(key); resultErrors.delete(key);
+      attempted.add(key); resultErrors.delete(`${scope}:${key}`); refreshResultMessages();
       try {
-        await recordDailyResult(result);
-        markResultRecorded(result.game, result.date);
-      } catch { resultErrors.add(key); }
+        await recordDailyResult(result, scope);
+        markResultRecorded(result.game, result.date, scope);
+      } catch { resultErrors.add(`${scope}:${key}`); }
       refreshResultMessages();
     }
-  } finally { syncingResults = false; refreshResultMessages(); }
+  } finally {
+    syncingResults = false; refreshResultMessages();
+    if (scope !== getPlayerScope() && mode === "daily") queueMicrotask(flushResults);
+  }
 }
 
 function answerForm(label, placeholder) {
@@ -166,6 +191,7 @@ function resultPanel(game, heading, description) {
 
 function renderPlayer() {
   const state = states.player;
+  if (state.recordedOnly) { renderRecordedResult("player"); return; }
   const visible = state.done ? 5 : state.attempts.length + 1;
   const hints = puzzle.playerGuess.hints.map((hint, i) => `<li class="hint ${i >= visible ? "locked" : !state.done && i === visible - 1 ? "current" : ""}"><span class="hint-index">0${i + 1}</span><span>${i < visible ? escape(hint) : "Clue locked · Guess or skip to unlock"}</span></li>`).join("");
   $("#game-body").innerHTML = `<div class="play-panel"><div class="panel-meta"><span class="pill">THE MYSTERY PLAYER</span><span>${state.done ? "Final whistle" : `Clue ${visible} of 5 · ${6 - visible} point${6 - visible === 1 ? "" : "s"} available`}</span></div><ol class="clue-list">${hints}</ol>${state.done ? resultPanel("player", state.won ? "You called it." : "A tough one today.", `The player was <strong>${escape(puzzle.playerGuess.answer)}</strong>. ${mode === "daily" ? "Come back for a fresh player tomorrow." : "Practice results don't affect your streak."}`) : answerForm("Who's the player?", "Enter a player name")}${state.attempts.length ? `<ul class="attempt-list">${state.attempts.map((a, i) => `<li><span>Clue ${i + 1} · ${escape(a.guess)}</span><span class="${a.correct ? "correct-text" : "wrong-text"}">${a.correct ? "Correct ✓" : a.skipped ? "Skipped" : "Incorrect ×"}</span></li>`).join("")}</ul>` : ""}</div>`;
@@ -173,6 +199,7 @@ function renderPlayer() {
 
 function renderLadder() {
   const state = states.ladder;
+  if (state.recordedOnly) { renderRecordedResult("ladder"); return; }
   const current = state.attempts.length;
   const question = puzzle.statLadder.questions[current];
   const rungs = Array.from({ length: 5 }, (_, i) => `<span class="rung ${state.attempts[i] ? state.attempts[i].correct ? "correct" : "incorrect" : i === current ? "active" : ""}" aria-label="Rung ${i + 1}${state.attempts[i] ? state.attempts[i].correct ? ": correct" : ": missed" : ""}">${state.attempts[i] ? state.attempts[i].correct ? "✓" : "×" : i + 1}</span>`).join("");
@@ -184,10 +211,19 @@ function selectedEntry() { return crossword.entries.find(entry => entry.id === a
 
 function renderCross() {
   const state = states.cross;
+  if (state.recordedOnly) { renderRecordedResult("cross"); return; }
   const cells = crossword.cells.map((cell, index) => cell ? `<div class="cross-cell ${state.reveals.includes(index) ? "revealed" : ""}" data-cell="${index}">${cell.number ? `<span aria-hidden="true">${cell.number}</span>` : ""}<input type="text" data-letter="${index}" value="${escape(state.letters[index])}" maxlength="1" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Row ${Math.floor(index / crossword.size) + 1}, column ${index % crossword.size + 1}${cell.number ? `, clue ${cell.number}` : ""}" aria-describedby="active-clue" ${state.done ? "readonly" : ""} tabindex="${index === activeCell ? "0" : "-1"}"></div>` : `<div class="cross-cell black" aria-hidden="true"></div>`).join("");
   const clues = direction => `<div><h3 class="${direction === "down" ? "down-heading" : ""}">${direction === "across" ? "Across" : "Down"}</h3>${crossword.entries.filter(e => e.direction === direction).sort((a, b) => a.number - b.number).map(e => `<button class="clue-button" data-clue="${e.id}"><strong>${e.number}</strong><span>${escape(e.clue)} (${e.answer.length})</span></button>`).join("")}</div>`;
   $("#game-body").innerHTML = `<div class="play-panel"><div class="panel-meta"><span class="pill">${crossword.size} × ${crossword.size} MINI</span><span>${crossword.entries.length} clues · Take your time</span></div><div id="active-clue" class="cross-active-clue" aria-live="polite"></div><div class="cross-layout"><div><div class="cross-grid" style="grid-template-columns:repeat(${crossword.size},1fr);--cross-letter:${Math.max(14, Math.floor(130 / crossword.size))}px">${cells}</div><p id="cross-progress" class="cross-progress"></p>${state.done ? "" : `<div class="cross-tools"><button class="button secondary" data-action="check-cross">Check grid</button><button class="button secondary" data-action="reveal-cross">Reveal a letter</button></div>`}<p class="cross-footnote">Checks and revealed letters appear in your shared result.</p></div><div class="cross-clues">${clues("across")}${clues("down")}</div></div><div id="cross-result">${state.done ? crossResult() : ""}</div></div>`;
   paintCross();
+}
+
+function renderRecordedResult(game) {
+  const state = states[game];
+  const description = game === "cross"
+    ? `${state.checks} grid check${state.checks === 1 ? "" : "s"} · ${state.revealCount} letter reveal${state.revealCount === 1 ? "" : "s"}.`
+    : "Your completed score is saved to this account. Come back tomorrow for a fresh game.";
+  $("#game-body").innerHTML = `<div class="play-panel">${resultPanel(game, "Today's result is saved.", description)}<p class="fine-print">Loaded from your saved score. Individual guesses and grid letters stay on the device where you played.</p></div>`;
 }
 
 function crossResult() {
@@ -379,4 +415,25 @@ function tick() {
 window.addEventListener("hashchange", () => { route(); window.scrollTo({ top: 0, behavior: "instant" }); });
 window.addEventListener("pageshow", event => { if (event.persisted) loadSlate(); });
 window.addEventListener("online", () => { if (mode === "daily") flushResults(); });
-await loadSlate(); tick(); setInterval(tick, 1000);
+
+async function initializePlayer() {
+  if (!configured) return;
+  setPlayerScope(readLocal("last-player"));
+  try {
+    playerConnection = await connectPlayer();
+    const applyUser = user => {
+      const nextScope = user?.uid || "local-guest";
+      const changed = Boolean(puzzle) && getPlayerScope() !== nextScope;
+      playerUid = user?.uid || null; setPlayerScope(nextScope);
+      $("#account-link").textContent = !user || user.isAnonymous ? "Sign in" : "Account";
+      if (changed) {
+        if (busy) playerChangedDuringLoad = true; else loadSlate();
+      }
+      if (user && !user.isAnonymous) ensurePlayerProfile(playerConnection).catch(() => {});
+    };
+    applyUser(playerConnection.auth.currentUser);
+    playerConnection.authModule.onAuthStateChanged(playerConnection.auth, applyUser);
+  } catch { /* Firebase account access is optional; games stay playable locally. */ }
+}
+
+await initializePlayer(); await loadSlate(); tick(); setInterval(tick, 1000);

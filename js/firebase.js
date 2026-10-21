@@ -1,5 +1,5 @@
 import { firebaseConfig } from "../firebase-config.js";
-import { releaseTime, validatePuzzle, validDate, GAMES } from "./core.js";
+import { releaseTime, validatePuzzle, validDate, validDailyResult } from "./core.js";
 
 export const configured = Boolean(firebaseConfig.apiKey && firebaseConfig.projectId && firebaseConfig.appId);
 const SDK = "https://www.gstatic.com/firebasejs/13.0.0";
@@ -34,7 +34,7 @@ export async function connectOwner() {
   return { db, store, auth, authModule };
 }
 
-async function connectPlayer() {
+export async function connectPlayer() {
   if (!playerConnection) playerConnection = (async () => {
     const [{ appModule, store }, authModule] = await Promise.all([connect(), import(`${SDK}/firebase-auth.js`)]);
     // A separate app keeps the guest identity independent of owner sign-in.
@@ -44,26 +44,22 @@ async function connectPlayer() {
     await authModule.setPersistence(auth, authModule.browserLocalPersistence);
     await auth.authStateReady();
     if (!auth.currentUser) await authModule.signInAnonymously(auth);
-    return { db: store.getFirestore(instance), store, auth };
+    return { db: store.getFirestore(instance), store, auth, authModule };
   })().catch(error => { playerConnection = null; throw error; });
   return playerConnection;
 }
 
-export async function recordDailyResult(result) {
-  return writeDailyResult(await connectPlayer(), result);
+export async function recordDailyResult(result, expectedUid) {
+  return writeDailyResult(await connectPlayer(), result, expectedUid);
 }
 
-export async function writeDailyResult(connection, result) {
+export async function writeDailyResult(connection, result, expectedUid) {
   const { db, store, auth } = connection;
   const { date, game, score, won, checks, reveals } = result;
-  const limit = game === "ladder" ? 15 : game === "player" ? 5 : 1;
-  if (result.mode !== "daily" || result.done !== true || !validDate(date) || !GAMES.includes(game) ||
-    !Number.isInteger(score) || score < 0 || score > limit || won !== (score > 0) ||
-    !Number.isInteger(checks) || checks < 0 || checks > 1000000 ||
-    !Number.isInteger(reveals) || reveals < 0 || reveals > 121 ||
-    (game === "cross" ? score !== 1 : checks !== 0 || reveals !== 0)) throw new Error("Invalid daily result.");
+  if (result.mode !== "daily" || result.done !== true || !validDailyResult(result)) throw new Error("Invalid daily result.");
   const playerId = auth.currentUser?.uid;
   if (!playerId) throw new Error("A player session is required to record a result.");
+  if (expectedUid && expectedUid !== playerId) throw new Error("The player account changed. This result stays with its original player.");
   const reference = store.doc(db, "results", `${playerId}_${date}_${game}`);
   const data = { playerId, date, game, score, won, checks, reveals };
   try {
@@ -75,6 +71,76 @@ export async function writeDailyResult(connection, result) {
     const existing = await store.getDocFromServer(reference);
     if (!existing.exists() || !Object.entries(data).every(([key, value]) => existing.data()[key] === value)) throw error;
   }
+}
+
+export async function playerResultsForDate(connection, date) {
+  const { db, store, auth } = connection;
+  const uid = auth.currentUser?.uid;
+  if (!uid || !validDate(date)) return [];
+  // Equality-only query uses Firestore's built-in index merging; no paid
+  // service or extra composite index is needed for the three daily totals.
+  const query = store.query(store.collection(db, "results"), store.where("playerId", "==", uid), store.where("date", "==", date), store.limit(3));
+  const snapshot = await store.getDocsFromServer(query);
+  if (auth.currentUser?.uid !== uid) throw new Error("The player account changed while loading results.");
+  return snapshot.docs.map(doc => {
+    const { game, score, won, checks, reveals } = doc.data();
+    return { game, score, won, checks, reveals, date, mode: "daily", done: true };
+  }).filter(validDailyResult);
+}
+
+export async function ensurePlayerProfile(connection) {
+  const { db, store, auth } = connection;
+  const user = auth.currentUser;
+  if (!user || user.isAnonymous) return false;
+  const reference = store.doc(db, "users", user.uid);
+  const existing = await store.getDocFromServer(reference);
+  if (existing.exists()) {
+    if (existing.data().role !== "user") throw new Error("The player profile needs an owner check.");
+    return true;
+  }
+  if (auth.currentUser?.uid !== user.uid) throw new Error("The player account changed.");
+  try { await store.setDoc(reference, { role: "user", createdAt: store.serverTimestamp() }); }
+  catch (error) {
+    // Another tab may have provisioned the same immutable profile.
+    if (error.code !== "permission-denied") throw error;
+    const saved = await store.getDocFromServer(reference);
+    if (!saved.exists() || saved.data().role !== "user") throw error;
+  }
+  return true;
+}
+
+export async function signInPlayerWithEmail(connection, email, password, create = false) {
+  const { auth, authModule } = connection;
+  if (!create) return authModule.signInWithEmailAndPassword(auth, email.trim(), password);
+  if (auth.currentUser?.isAnonymous) {
+    const credential = authModule.EmailAuthProvider.credential(email.trim(), password);
+    return authModule.linkWithCredential(auth.currentUser, credential);
+  }
+  return authModule.createUserWithEmailAndPassword(auth, email.trim(), password);
+}
+
+export async function signInPlayerWithGoogle(connection) {
+  const { auth, authModule } = connection;
+  const provider = new authModule.GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: "select_account" });
+  if (auth.currentUser?.isAnonymous) {
+    try { return await authModule.linkWithPopup(auth.currentUser, provider); }
+    catch (error) {
+      if (error.code !== "auth/credential-already-in-use" && error.code !== "auth/email-already-in-use") throw error;
+      const credential = authModule.GoogleAuthProvider.credentialFromError(error);
+      if (!credential) throw error;
+      // Existing accounts keep their own record. Never overwrite them with
+      // this browser's unrelated guest history or delete the guest account.
+      return authModule.signInWithCredential(auth, credential);
+    }
+  }
+  return authModule.signInWithPopup(auth, provider);
+}
+
+export async function signOutPlayer(connection) {
+  await connection.authModule.signOut(connection.auth);
+  // Signing out returns to a fresh guest, rather than blocking gameplay.
+  return connection.authModule.signInAnonymously(connection.auth);
 }
 
 export async function isOwner(connection, uid) {

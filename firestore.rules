@@ -44,6 +44,18 @@ service cloud.firestore {
       allow get: if request.auth != null && request.auth.uid == uid;
       allow list, create, update, delete: if false;
     }
+    match /users/{uid} {
+      // A registered player can provision only their own immutable user role.
+      // Publishing authority comes exclusively from the separate owners list.
+      allow get: if owner() || (request.auth != null && request.auth.uid == uid);
+      allow list: if owner();
+      allow create: if request.auth != null && request.auth.uid == uid
+        && request.auth.token.firebase.sign_in_provider in ['password', 'google.com']
+        && request.resource.data.keys().hasOnly(['role', 'createdAt'])
+        && request.resource.data.keys().hasAll(['role', 'createdAt'])
+        && request.resource.data.role == 'user' && request.resource.data.createdAt == request.time;
+      allow update, delete: if false;
+    }
     match /dailyPuzzles/{date} {
       allow get: if owner() || (resource.data.published == true && resource.data.unlockAt <= request.time);
       allow list: if owner();
@@ -57,7 +69,8 @@ service cloud.firestore {
       // One immutable completion per guest, date, and game. No public score list.
       allow create: if validResult(id);
       allow get: if owner() || (request.auth != null && resource.data.playerId == request.auth.uid);
-      allow list: if owner();
+      allow list: if owner() || (request.auth != null
+        && resource.data.playerId == request.auth.uid && request.query.limit <= 120);
       allow update, delete: if false;
     }
     match /{document=**} { allow read, write: if false; }

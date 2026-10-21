@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { dateKey, validDate, shiftDate, releaseTime, normalize, matches, validatePuzzle, buildCrossword,
-  newState, guessPlayer, guessLadder, finishCrossword, streakStats, shareScore } from "../js/core.js";
+  newState, guessPlayer, guessLadder, finishCrossword, streakStats, shareScore, stateFromRecordedResult } from "../js/core.js";
 
 const sample = JSON.parse(readFileSync(new URL("../data/practice.json", import.meta.url)));
 const copy = () => structuredClone(sample);
@@ -160,4 +160,22 @@ test("crossword share results disclose both checks and revealed letters", () => 
   const state = { ...newState("cross", sample), done: true, checks: 2, reveals: [0, 2] };
   const text = shareScore("cross", state, sample);
   assert.ok(text.includes("Assisted")); assert.ok(text.includes("2 checks")); assert.ok(text.includes("2 letter reveals"));
+});
+
+test("restored account totals lock completed games without inventing a guess history", () => {
+  const saved = { game: "ladder", date: sample.date, score: 9, won: true, checks: 0, reveals: 0 };
+  const state = stateFromRecordedResult(saved, sample);
+  assert.equal(state.done, true); assert.equal(state.score, 9);
+  assert.deepEqual(state.attempts, []);
+  assert.equal(guessLadder(state, sample, "Anything"), state);
+  const text = shareScore("ladder", state, sample);
+  assert.ok(text.includes("9/15")); assert.ok(text.includes("Saved result"));
+  assert.ok(!text.includes("🟩"));
+  assert.throws(() => stateFromRecordedResult({ ...saved, date: "2026-10-21" }, sample), /Invalid recorded result/);
+});
+
+test("restored crossword totals share the actual assistance count without fabricating revealed cells", () => {
+  const state = stateFromRecordedResult({ game: "cross", date: sample.date, score: 1, won: true, checks: 4, reveals: 3 }, sample);
+  assert.deepEqual(state.reveals, []); assert.equal(state.revealCount, 3);
+  assert.ok(shareScore("cross", state, sample).includes("4 checks · 3 letter reveals"));
 });

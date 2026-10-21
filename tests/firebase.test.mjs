@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { writeDailyResult } from "../js/firebase.js";
+import { writeDailyResult, ensurePlayerProfile, signInPlayerWithEmail, signInPlayerWithGoogle, signOutPlayer } from "../js/firebase.js";
 
 const result = { game: "player", date: "2026-10-20", mode: "daily", done: true, score: 5, won: true, checks: 0, reveals: 0 };
 
@@ -60,4 +60,70 @@ test("network failures remain failures so the local queue can retry later", asyn
   const client = connection({ failure });
   await assert.rejects(writeDailyResult(client, result), failure);
   assert.deepEqual(client.reads, []);
+});
+
+test("a pending score cannot be recorded under a different signed-in account", async () => {
+  const client = connection();
+  await assert.rejects(writeDailyResult(client, result, "another-user"), /account changed/);
+  assert.deepEqual(client.writes, []);
+});
+
+test("only registered accounts create private user profiles, with no owner privilege", async () => {
+  const guest = connection(); guest.auth.currentUser.isAnonymous = true;
+  assert.equal(await ensurePlayerProfile(guest), false);
+  assert.deepEqual(guest.writes, []);
+  const user = connection(); user.auth.currentUser.isAnonymous = false;
+  assert.equal(await ensurePlayerProfile(user), true);
+  assert.deepEqual(user.writes[0], { path: "users/guest-123", data: { role: "user", createdAt: "server-time" } });
+  const existing = connection({ existing: { role: "user" } });
+  await ensurePlayerProfile(existing); assert.deepEqual(existing.writes, []);
+});
+
+test("email signup links a guest identity; existing account login uses its own identity", async () => {
+  const calls = [];
+  const guest = { uid: "guest-a", isAnonymous: true };
+  const client = { auth: { currentUser: guest }, authModule: {
+    EmailAuthProvider: { credential: (email, password) => ({ email, password }) },
+    linkWithCredential: async (user, credential) => { calls.push({ kind: "link", uid: user.uid, email: credential.email }); return { user }; },
+    signInWithEmailAndPassword: async (_auth, email) => { calls.push({ kind: "sign-in", email }); return { user: { uid: "existing-user" } }; }
+  } };
+  const linked = await signInPlayerWithEmail(client, " player@example.com ", "test-placeholder", true);
+  assert.equal(linked.user.uid, "guest-a");
+  const signedIn = await signInPlayerWithEmail(client, "player@example.com", "test-placeholder");
+  assert.equal(signedIn.user.uid, "existing-user");
+  assert.deepEqual(calls, [{ kind: "link", uid: "guest-a", email: "player@example.com" }, { kind: "sign-in", email: "player@example.com" }]);
+});
+
+test("Google signup preserves a guest; an existing credential opens its account without deleting or merging guest data", async () => {
+  const calls = [];
+  class Provider { setCustomParameters() {} static credentialFromError() { return "existing-credential"; } }
+  const client = { auth: { currentUser: { uid: "guest-a", isAnonymous: true } }, authModule: {
+    GoogleAuthProvider: Provider,
+    linkWithPopup: async user => { calls.push("link"); return { user }; },
+    signInWithCredential: async () => { calls.push("existing"); return { user: { uid: "user-b" } }; }
+  } };
+  assert.equal((await signInPlayerWithGoogle(client)).user.uid, "guest-a");
+  client.authModule.linkWithPopup = async () => { throw Object.assign(new Error("exists"), { code: "auth/credential-already-in-use" }); };
+  assert.equal((await signInPlayerWithGoogle(client)).user.uid, "user-b");
+  assert.deepEqual(calls, ["link", "existing"]);
+});
+
+test("signing out returns to anonymous play without changing saved records", async () => {
+  const calls = [];
+  const client = { auth: {}, authModule: {
+    signOut: async () => calls.push("sign-out"),
+    signInAnonymously: async () => { calls.push("guest"); return { user: { uid: "new-guest", isAnonymous: true } }; }
+  } };
+  const next = await signOutPlayer(client);
+  assert.equal(next.user.isAnonymous, true);
+  assert.deepEqual(calls, ["sign-out", "guest"]);
+});
+
+test("a canceled or failed Google link leaves the guest signed in", async () => {
+  const guest = { uid: "guest-a", isAnonymous: true };
+  const failure = Object.assign(new Error("canceled"), { code: "auth/popup-closed-by-user" });
+  class Provider { setCustomParameters() {} }
+  const client = { auth: { currentUser: guest }, authModule: { GoogleAuthProvider: Provider, linkWithPopup: async () => { throw failure; } } };
+  await assert.rejects(signInPlayerWithGoogle(client), failure);
+  assert.equal(client.auth.currentUser.uid, "guest-a");
 });

@@ -3,7 +3,7 @@ import { readFile, stat } from "node:fs/promises";
 import { resolve, extname } from "node:path";
 
 const root = resolve(import.meta.dirname, "..");
-const allowed = /^(index\.html|admin\.html|favicon\.svg|firebase-config\.js|(?:css|js|data)\/[a-zA-Z0-9_./-]+)$/;
+const allowed = /^(index\.html|admin\.html|account\.html|favicon\.svg|firebase-config\.js|(?:css|js|data)\/[a-zA-Z0-9_./-]+)$/;
 const types = { ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".json": "application/json", ".svg": "image/svg+xml" };
 const port = 3000;
 createServer(async (request, response) => {

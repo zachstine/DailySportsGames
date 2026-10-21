@@ -171,6 +171,23 @@ export function newState(game, puzzle) {
   throw new Error("Unknown game.");
 }
 
+export function validDailyResult(result) {
+  if (!result || !GAMES.includes(result.game) || !validDate(result.date)) return false;
+  const { game, score, won, checks, reveals } = result;
+  const limit = game === "ladder" ? 15 : game === "player" ? 5 : 1;
+  return Number.isInteger(score) && score >= 0 && score <= limit && won === (score > 0) &&
+    Number.isInteger(checks) && checks >= 0 && checks <= 1000000 &&
+    Number.isInteger(reveals) && reveals >= 0 && reveals <= 121 &&
+    (game === "cross" ? score === 1 : checks === 0 && reveals === 0);
+}
+
+export function stateFromRecordedResult(result, puzzle) {
+  if (!validDailyResult(result) || result.date !== puzzle.date) throw new Error("Invalid recorded result.");
+  // A saved total does not contain the original guesses or revealed squares.
+  return { ...newState(result.game, puzzle), done: true, won: result.won, score: result.score,
+    recordedOnly: true, ...(result.game === "cross" ? { checks: result.checks, revealCount: result.reveals } : {}) };
+}
+
 export function guessPlayer(state, puzzle, guess, skip = false) {
   if (state.done) return state;
   if (!skip && !normalize(guess)) throw new Error("Enter a player name.");
@@ -214,13 +231,14 @@ export function shareScore(game, state, puzzle, mode = "daily", url = "") {
   let score, blocks;
   if (game === "player") {
     score = `${state.score}/5`;
-    blocks = [...state.attempts.map(a => a.correct ? "🟩" : a.skipped ? "⬜" : "🟥"), ...Array(5 - state.attempts.length).fill("⬛")].join("");
+    blocks = state.recordedOnly ? "Saved result" : [...state.attempts.map(a => a.correct ? "🟩" : a.skipped ? "⬜" : "🟥"), ...Array(5 - state.attempts.length).fill("⬛")].join("");
   } else if (game === "ladder") {
     score = `${state.score}/15`;
-    blocks = state.attempts.map(a => a.correct ? "🟩" : a.skipped ? "⬜" : "🟥").join("");
+    blocks = state.recordedOnly ? "Saved result" : state.attempts.map(a => a.correct ? "🟩" : a.skipped ? "⬜" : "🟥").join("");
   } else {
     score = state.done ? "Complete" : "In progress";
-    blocks = `${state.reveals.length ? "🟨 Assisted" : "🟩 No reveals"} · ${state.checks} check${state.checks === 1 ? "" : "s"} · ${state.reveals.length} letter reveal${state.reveals.length === 1 ? "" : "s"}`;
+    const reveals = state.revealCount ?? state.reveals.length;
+    blocks = `${reveals ? "🟨 Assisted" : "🟩 No reveals"} · ${state.checks} check${state.checks === 1 ? "" : "s"} · ${reveals} letter reveal${reveals === 1 ? "" : "s"}`;
   }
   return [`Daily Sports Games · ${label}`, `${GAME_NAMES[game]}: ${score}`, blocks, url].filter(Boolean).join("\n");
 }

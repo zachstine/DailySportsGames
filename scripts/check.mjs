@@ -11,7 +11,7 @@ for (const folder of ["js", "scripts", "tests"]) for (const filename of await re
   const result = spawnSync(process.execPath, ["--check", resolve(root, folder, filename)], { encoding: "utf8" });
   if (result.status) failures.push(result.stderr);
 }
-for (const filename of ["index.html", "admin.html"]) {
+for (const filename of ["index.html", "admin.html", "account.html"]) {
   const content = await readFile(resolve(root, filename), "utf8");
   const ids = [...content.matchAll(/\bid="([^"]+)"/g)].map(x => x[1]);
   if (new Set(ids).size !== ids.length) failures.push(`${filename}: duplicate element IDs.`);

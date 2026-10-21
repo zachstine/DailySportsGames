@@ -24,6 +24,10 @@ Only the Firebase Console (or a trusted admin environment) can add owners. Websi
 
 Under **Authentication → Sign-in method**, also enable **Anonymous** for guest score recording. This lets each browser submit its own completed daily scores without a signup form. It does not grant publishing access. The deployed `firestore.rules` must include the restricted `results` collection rules from this repository. The owner login and guest identity use separate Firebase app instances, so owner sign-in doesn't replace a player's guest identity.
 
+For optional player accounts, enable **both Google and Email/Password**. The public `account.html` page uses these providers in the player app session. Registered players create their own private `users/{uid}` profile containing only `role: "user"` and `createdAt`; no manual user-group provisioning is needed. Publish the `users` rules and player-scoped result query rules from `firestore.rules` as well. User membership does not grant owner publishing permission.
+
+New email signups link to their guest UID. Google tries linking first; if its credential belongs to an existing account, that account opens with its own record. Signing into an existing email account also keeps histories separate. Do not copy or delete guest documents to force an account merge.
+
 ## 3. Bring the files into your VS Code project
 
 These changes are committed to the GitHub repository. In the local DailySportsGames project, pull `main` before editing the config:
@@ -83,17 +87,20 @@ Publish a slate for today, open the public home page, and confirm the edition sa
 - `dailyPuzzles`: the slate saved by the owner desk.
 - `owners`: your publishing authorization document.
 - `results`: one document per completed daily game and guest identity, with score, date, game, `completedAt`, and crossword checks/reveals.
+- `users`: one private `role: "user"` profile per registered player. Email and provider details are available under **Authentication → Users** rather than duplicated in Firestore.
 
 Refresh the completed game: its score and one-day streak should remain, and it should not create another result document. A missing slate displays **PRACTICE SLATE** instead; practice and previews do not write scores to Firestore. Previously completed practice games cannot be converted into real daily results.
 
-If a daily result says online recording is unavailable, verify Anonymous sign-in is enabled and the latest rules are published. The score remains local and queued for retry. Existing genuine daily completions can retry from the same browser; results from a different browser or cleared storage cannot be recovered by this MVP.
+If a daily result says online recording is unavailable, verify Anonymous sign-in is enabled and the latest rules are published. The score remains local and queued for retry. Existing genuine daily completions can retry from the same browser. Registered accounts can restore today's submitted totals after signing in on another device; unsent scores, unfinished games, and the full streak history remain local.
+
+Open the Account page as a guest and check today's saved totals. Sign in, then confirm its account's separate totals appear. Sign out and confirm fresh guest play is still available. A player cannot grant themselves owner access by editing their profile.
 
 If you use a different GitHub account later, update the clone and setup links, hosting hostname in Firebase, and the URL you share. All in-app asset links are relative, so the code supports a repository subpath.
 
 ## Costs and scope
 
-The target is **$0/month** for this friend demo: public GitHub Pages, Spark Firestore, owner Google/Email Authentication, and anonymous guest authentication. Firestore's free quotas include **50,000 document reads/day**, **20,000 writes/day**, and **1 GiB of storage** for the default free database. Watch actual usage in the Firebase Console. A page load normally reads one daily puzzle document shared by all three games, without a live listener. Each completed game adds a result write; rule checks and duplicate retries can also use reads. Owner operations can read additional documents for authorization and scheduling.
+The target is **$0/month** for this friend demo: public GitHub Pages, Spark Firestore, Google/Email Authentication, and anonymous guest authentication. Firestore's free quotas include **50,000 document reads/day**, **20,000 writes/day**, and **1 GiB of storage** for the default free database. Watch actual usage in the Firebase Console. A page load reads one daily puzzle document shared by all three games and queries at most three saved daily totals, without a live listener. Registered profile checks, rule checks, and duplicate retries also use reads. Each completed game adds a result write; each new registered player adds one profile write. Owner operations read additional documents for authorization and scheduling.
 
-Keep the project on Spark for the demo. Quota exhaustion can stop Firebase operations instead of increasing a bill. Cloud Functions, a Cloud Storage bucket, paid sports APIs, player signup, cross-device progress, and a trusted leaderboard are outside this version. JSON “upload” means reading a local file in the browser and writing a validated Firestore document; it doesn't use Cloud Storage.
+Keep the project on Spark for the demo. Quota exhaustion can stop Firebase operations instead of increasing a bill. Cloud Functions, a Cloud Storage bucket, paid sports APIs, syncing unfinished games, and a trusted leaderboard are outside this version. JSON “upload” means reading a local file in the browser and writing a validated Firestore document; it doesn't use Cloud Storage.
 
 Reference: [Firebase pricing plans](https://firebase.google.com/docs/projects/billing/firebase-pricing-plans), [Firestore quotas](https://firebase.google.com/docs/firestore/quotas), [Pages publishing source](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site).

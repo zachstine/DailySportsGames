@@ -1,13 +1,14 @@
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { newState, guessPlayer } from "../js/core.js";
+import { newState, guessPlayer, stateFromRecordedResult } from "../js/core.js";
 import { loadGame, saveGame, allResults, resetPractice, readLocal, writeLocal, gameKey, readPreview, writePreview, getDraft, saveDraft,
-  pendingResults, markResultRecorded, resultRecorded } from "../js/storage.js";
+  pendingResults, markResultRecorded, resultRecorded, setPlayerScope, getPlayerScope, importRecordedResults } from "../js/storage.js";
 
 const sample = JSON.parse(readFileSync(new URL("../data/practice.json", import.meta.url)));
 let data;
 beforeEach(() => {
+  setPlayerScope(null);
   data = new Map();
   globalThis.localStorage = {
     getItem: key => data.has(key) ? data.get(key) : null,
@@ -18,6 +19,49 @@ beforeEach(() => {
     getItem: key => session.get(key) ?? null,
     setItem: (key, value) => session.set(key, value)
   };
+});
+
+test("daily progress, streak records, and pending submissions are isolated between player accounts", () => {
+  const state = guessPlayer(newState("player", sample), sample, "Jordan");
+  setPlayerScope("guest-a"); saveGame("player", sample, "daily", state);
+  assert.equal(getPlayerScope(), "guest-a");
+  setPlayerScope("user-b");
+  assert.equal(loadGame("player", sample, "daily").done, false);
+  assert.deepEqual(allResults(), []); assert.deepEqual(pendingResults(), []);
+  saveGame("player", sample, "daily", guessPlayer(newState("player", sample), sample, "Wrong"));
+  setPlayerScope("guest-a");
+  assert.equal(loadGame("player", sample, "daily").done, true);
+  assert.equal(pendingResults().length, 1);
+  // An acknowledgement arriving after an account switch stays with its player.
+  setPlayerScope("user-b"); markResultRecorded("player", sample.date, "guest-a");
+  assert.equal(resultRecorded("player", sample.date), false);
+  assert.equal(resultRecorded("player", sample.date, "guest-a"), true);
+});
+
+test("first-version local saves migrate to only the first guest identity", () => {
+  const state = guessPlayer(newState("player", sample), sample, "Jordan");
+  saveGame("player", sample, "daily", state);
+  setPlayerScope("original-guest");
+  assert.equal(loadGame("player", sample, "daily").score, 5);
+  assert.equal(pendingResults().length, 1);
+  setPlayerScope("different-user");
+  assert.equal(loadGame("player", sample, "daily").done, false);
+  assert.deepEqual(allResults(), []);
+});
+
+test("remote account results are acknowledged and keep crossword assistance without creating a retry", () => {
+  setPlayerScope("signed-in-user");
+  importRecordedResults([{ game: "cross", date: sample.date, score: 1, won: true, checks: 4, reveals: 2 }]);
+  assert.equal(resultRecorded("cross", sample.date), true);
+  assert.equal(allResults()[0].reveals, 2);
+  assert.deepEqual(pendingResults(), []);
+  importRecordedResults([{ game: "cross", date: sample.date, score: 1, won: true, checks: 4, reveals: 2 }]);
+  assert.equal(allResults().length, 1);
+  const state = stateFromRecordedResult(allResults()[0], sample);
+  saveGame("cross", sample, "daily", state);
+  assert.deepEqual(loadGame("cross", sample, "daily"), state);
+  assert.equal(allResults()[0].reveals, 2);
+  assert.deepEqual(pendingResults(), []);
 });
 
 test("reload restores partial game progress; dates and modes stay isolated", () => {

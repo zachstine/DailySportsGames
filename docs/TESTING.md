@@ -21,6 +21,17 @@ Run `npm run check`, `npm test`, and `npm run build` first. Then use this short 
 - Disconnect after loading a daily slate, then finish it. The result should remain local with a retry message. Reconnect or reopen the daily page and confirm the pending result reaches Firestore once. Practice and preview completions must never enter this queue.
 - Sign in/out of the owner desk, then return to the game site. Guest score identity and local progress should remain separate from the owner login.
 
+## Player accounts
+
+- Open Account as a guest. All three games must remain playable without submitting a sign-in form. Previously recorded guest scores should appear in today's saved totals.
+- Create a new email/password account from the guest. Its UID, completed scores, and local daily progress should remain the same; Firestore should gain `users/{uid}` with `role: "user"` and a server creation time.
+- Try Google with a new credential, then an existing one. New credentials should link the guest. Existing credentials should open that account's separate record without deleting the guest or overwriting account scores.
+- Sign into an existing email/password account. Guest progress, streak records, and pending submissions must not appear as that account's results.
+- Sign out, then play as a fresh guest. The signed-out account's email, completed scores, and pending writes must not remain in the guest UI. The separate owner desk session should remain unchanged.
+- Sign into the same account on another device. Today's submitted totals must restore and lock completed games. The site must not invent individual guesses or revealed-cell locations when only a total is available.
+- Cancel Google sign-in or enter an invalid password. Keep the current guest's saved progress and show a useful error. Verify the password field clears and no password is saved in local storage or Firestore.
+- Test Forgot password with an account you control; the UI should give a generic inbox message. Test account tabs, Enter submission, and arrow-key navigation.
+
 ## Owner desk
 
 - With blank Firebase config, local editing, draft saving, JSON export/import, and previews should work. Cloud save/publish should be disabled.
@@ -56,9 +67,17 @@ Use Firebase's authenticated and unauthenticated rule simulations (or the Emulat
 | Anonymous guest: create a result for someone else's UID, a future slate, or a missing slate | Deny |
 | Anonymous guest: create a result with out-of-range score, extra fields, or a client completion timestamp | Deny |
 | Anonymous guest: get their own result | Allow |
-| Anonymous guest: get another guest's result or list results | Deny |
+| Anonymous guest: get another guest's result or query without a playerId filter | Deny |
+| Player: query only their own results with a limit of 120 or less | Allow |
+| Player: query someone else's results or use an unbounded query | Deny |
 | Owner: read/list completed results | Allow |
 | Anyone using the client SDK: update/delete an existing result | Deny |
+| Registered player: create their own `users/{uid}` with only role=user and a server createdAt | Allow |
+| Anonymous guest: create a registered user profile | Deny |
+| Player: create another person's profile, set role=owner, or add extra profile fields | Deny |
+| Player: read their own profile | Allow |
+| Player: read another player's profile or list users | Deny |
+| Anyone using the client SDK: update/delete a user profile | Deny |
 
 `updatedAt` and result `completedAt` must be server timestamps matching the request time. `unlockAt` is a Firestore timestamp computed by the owner editor for Eastern midnight. Result document IDs must be `{auth UID}_{date}_{game}`; duplicate attempts cannot overwrite an accepted result. The owner is a trusted content author; the editor validates all game fields before writing, while rules enforce access, revision, release, immutability, and the top-level document shape. A malicious account with actual owner authorization is not a threat the client editor can prevent; remove its owner document in the Console if access must be revoked. Client scores are appropriate for this friendly demo and are not server-verified for competitive play.
 
