@@ -1,5 +1,5 @@
 import { dateKey, shiftDate, releaseTime, GAME_NAMES, GAMES, buildCrossword, validatePuzzle,
-  guessPlayer, guessLadder, finishCrossword, streakStats, shareScore, stateFromRecordedResult,
+  guessPlayer, guessLadder, finishCrossword, streakStats, shareScore, shareSlate, stateFromRecordedResult,
   SolveTimer, validElapsedMs, formatDuration, gameScoreLabel } from "./core.js";
 import { loadGame, saveGame, allResults, storageAvailable, resetPractice, readPreview,
   pendingResults, markResultRecorded, resultRecorded, setPlayerScope, getPlayerScope, importRecordedResults, readLocal } from "./storage.js";
@@ -8,7 +8,7 @@ import { configured, getDailyPuzzle, recordDailyResult, connectPlayer, playerRes
 const $ = selector => document.querySelector(selector);
 const escape = value => String(value ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
 let puzzle, mode = "practice", states = {}, crossword, activeEntry = 0, activeCell = 0;
-let loadedDate = dateKey(), shareText = "", toastTimer, busy = false, badLetters = new Set();
+let loadedDate = dateKey(), shareText = "", sharingAll = false, toastTimer, busy = false, badLetters = new Set();
 let practicePuzzle;
 let syncingResults = false;
 let playerConnection, playerUid = null, playerChangedDuringLoad = false;
@@ -131,6 +131,8 @@ function renderDashboard() {
   const done = GAMES.filter(game => states[game].done).length;
   $("#slate-label").textContent = mode === "daily" ? "THE DAILY SLATE" : mode === "preview" ? "OWNER PREVIEW" : "PRACTICE SLATE";
   $("#completed-count").innerHTML = `${done}<span>/3</span>`;
+  $("#share-all-scores").disabled = done !== GAMES.length;
+  $("#slate-share-message").textContent = done === GAMES.length ? "All three games complete. Send your results in one text." : "Finish all three games to share your full slate. No spoilers.";
   const longest = Math.max(0, ...GAMES.map(game => streakStats(allResults().filter(r => r.game === game), loadedDate).current));
   $("#streak-summary").textContent = mode === "daily" ? longest ? `${longest}-day streak · Keep showing up` : "Your next daily ritual starts here" : mode === "preview" ? "Owner preview · No streaks recorded" : "Practice makes a sharper sports fan";
   for (const game of GAMES) {
@@ -217,7 +219,9 @@ function resultPanel(game, heading, description) {
     : `<a class="button secondary" href="#">View today's results</a>`;
   const sync = mode === "daily" ? `<p class="fine-print" role="status" data-result-sync="${game}" data-result-date="${puzzle.date}">${resultSyncMessage(game, puzzle.date)}</p><button class="text-button" data-action="retry-results" data-game="${game}" data-date="${puzzle.date}" ${resultRecorded(game, puzzle.date) ? "hidden" : ""} ${syncingResults ? "disabled" : ""}>Retry score recording</button>` : "";
   const score = game === "cross" ? validElapsedMs(state.elapsedMs) ? `<div class="result-score">${formatDuration(state.elapsedMs)}<span class="result-time-label">SOLVE TIME</span></div>` : "" : `<div class="result-score">${state.score}<span>/${game === "player" ? 5 : 15}</span></div>`;
-  return `<div class="result-panel"><p class="eyebrow">${mode === "daily" ? "DAILY RESULT" : mode === "preview" ? "OWNER PREVIEW RESULT" : "PRACTICE RESULT"}</p><h2>${heading}</h2>${score}<p>${description}</p><div class="button-row"><button class="button" data-action="share" data-game="${game}">Share your score ↗</button>${nextLink}</div>${sync}</div>`;
+  const allDone = GAMES.every(game => states[game].done);
+  const shareAll = allDone ? `<button class="button" data-action="share-all">Share all scores ↗</button>` : "";
+  return `<div class="result-panel"><p class="eyebrow">${mode === "daily" ? "DAILY RESULT" : mode === "preview" ? "OWNER PREVIEW RESULT" : "PRACTICE RESULT"}</p><h2>${heading}</h2>${score}<p>${description}</p><div class="button-row">${shareAll}<button class="button${allDone ? " secondary" : ""}" data-action="share" data-game="${game}">Share your score ↗</button>${nextLink}</div>${sync}</div>`;
 }
 
 function renderPlayer() {
@@ -407,21 +411,27 @@ document.addEventListener("click", async event => {
     resetPractice(puzzle, mode); await loadSlate(mode === "practice"); toast("Practice slate reset. Play again.");
   }
   if (action === "retry-results") flushResults();
-  if (action === "share") {
+  if (action === "share" || action === "share-all") {
+    sharingAll = action === "share-all";
     const game = button.dataset.game;
-    const url = new URL("./index.html", location.href); url.hash = game;
+    if (!puzzle || (sharingAll ? !GAMES.every(game => states[game]?.done) : !states[game]?.done)) {
+      toast(sharingAll ? "Finish all three games to share your full slate." : "Finish this game to share its score."); return;
+    }
+    const url = new URL("./index.html", location.href); url.hash = sharingAll ? "" : game;
     if (mode === "practice") url.searchParams.set("practice", "1");
-    shareText = shareScore(game, states[game], puzzle, mode, mode === "preview" ? "" : url.href);
+    shareText = sharingAll ? shareSlate(states, puzzle, mode, mode === "preview" ? "" : url.href) : shareScore(game, states[game], puzzle, mode, mode === "preview" ? "" : url.href);
+    $("#share-title").textContent = sharingAll ? "Your full slate." : "Your result.";
+    $("#copy-share").textContent = sharingAll ? "Copy all scores" : "Copy score";
     $("#share-text").value = shareText; $("#share-dialog").showModal();
   }
   if (action === "copy-share") {
-    try { await navigator.clipboard.writeText(shareText); toast("Score copied. Send it to the group chat."); }
+    try { await navigator.clipboard.writeText(shareText); toast(sharingAll ? "All scores copied. Send them to the group chat." : "Score copied. Send it to the group chat."); }
     catch { $("#share-text").focus(); $("#share-text").select(); toast("Select and copy the score text above."); }
   }
   if (action === "native-share") {
     if (navigator.share) {
-      try { await navigator.share({ text: shareText }); } catch (error) { if (error.name !== "AbortError") toast("Sharing wasn't available. Try Copy score."); }
-    } else { $("#share-text").focus(); $("#share-text").select(); toast("Select the score or use Copy score to share it."); }
+      try { await navigator.share({ text: shareText }); } catch (error) { if (error.name !== "AbortError") toast("Sharing wasn't available. Try the Copy button."); }
+    } else { $("#share-text").focus(); $("#share-text").select(); toast("Select the text or use the Copy button to share it."); }
   }
   if (action === "check-cross" && !states.cross.done) {
     states.cross.checks++; badLetters.clear();

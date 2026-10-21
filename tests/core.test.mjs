@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { dateKey, validDate, shiftDate, releaseTime, normalize, matches, validatePuzzle, buildCrossword,
-  newState, guessPlayer, guessLadder, finishCrossword, streakStats, shareScore, stateFromRecordedResult,
+  newState, guessPlayer, guessLadder, finishCrossword, streakStats, shareScore, shareSlate, stateFromRecordedResult,
   SolveTimer, formatDuration, gameScoreLabel } from "../js/core.js";
 
 const sample = JSON.parse(readFileSync(new URL("../data/practice.json", import.meta.url)));
@@ -191,6 +191,46 @@ test("share strings contain score and blocks, with no player or stat answers", (
   const ladderText = shareScore("ladder", ladder, sample, "practice");
   assert.ok(ladderText.includes("Practice")); assert.ok(ladderText.includes("15/15"));
   for (const q of sample.statLadder.questions) assert.ok(!ladderText.includes(q.answer));
+});
+
+test("full-slate sharing puts all three scores in one spoiler-free text, including zero and crossword time", () => {
+  const states = {
+    player: { ...newState("player", sample), done: true, score: 0 },
+    ladder: { ...newState("ladder", sample), done: true, score: 8 },
+    cross: { ...newState("cross", sample), done: true, score: 1, elapsedMs: 110123, checks: 1, reveals: [0] }
+  };
+  const url = "https://example.com/index.html";
+  assert.equal(shareSlate(states, sample, "daily", url), [
+    `Daily Sports Games · ${sample.date}`,
+    "Player Guess: 0/5",
+    "Stat Ladder: 8/15",
+    "CrossSport: 01:50 · 1 check · 1 reveal",
+    url
+  ].join("\n"));
+  const text = shareSlate(states, sample);
+  for (const answer of [sample.playerGuess.answer, ...sample.statLadder.questions.map(q => q.answer), ...sample.crossSport.entries.map(e => e.answer)]) assert.ok(!text.includes(answer));
+});
+
+test("full-slate sharing requires every game to be finished, in any playing order", () => {
+  const states = Object.fromEntries(["player", "ladder", "cross"].map(game => [game, { ...newState(game, sample), done: true }]));
+  for (const game of ["player", "ladder", "cross"]) {
+    assert.throws(() => shareSlate({ ...states, [game]: { ...states[game], done: false } }, sample), /Finish all three/);
+  }
+  assert.throws(() => shareSlate({}, sample), /Finish all three/);
+});
+
+test("combined sharing supports restored totals and labels practice and previews without inventing a legacy time", () => {
+  const totals = [
+    { game: "player", score: 4, won: true, checks: 0, reveals: 0 },
+    { game: "ladder", score: 8, won: true, checks: 0, reveals: 0 },
+    { game: "cross", score: 1, won: true, checks: 2, reveals: 3 }
+  ];
+  const states = Object.fromEntries(totals.map(r => [r.game, stateFromRecordedResult({ ...r, date: sample.date }, sample)]));
+  const text = shareSlate(states, sample);
+  assert.ok(text.includes("Player Guess: 4/5")); assert.ok(text.includes("Stat Ladder: 8/15"));
+  assert.ok(text.includes("CrossSport: Complete · 2 checks · 3 reveals")); assert.ok(!text.includes("00:00"));
+  assert.ok(shareSlate(states, sample, "practice").startsWith("Daily Sports Games · Practice\n"));
+  assert.ok(shareSlate(states, sample, "preview").startsWith("Daily Sports Games · Owner preview\n"));
 });
 
 test("crossword share results disclose both checks and revealed letters", () => {
