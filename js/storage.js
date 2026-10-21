@@ -1,4 +1,4 @@
-import { newState, puzzleFingerprint, GAMES, dateKey, validDailyResult } from "./core.js";
+import { newState, puzzleFingerprint, GAMES, dateKey, validDailyResult, validElapsedMs } from "./core.js";
 
 const PREFIX = "dsg:v1:";
 export let storageAvailable = true;
@@ -52,7 +52,10 @@ export function loadGame(game, puzzle, mode) {
       Number.isInteger(saved.checks) && saved.checks >= 0 && Array.isArray(saved.reveals) &&
       saved.reveals.every(x => Number.isInteger(x) && x >= 0 && x < saved.letters.length) :
       Array.isArray(saved.attempts) && saved.attempts.length <= 5 &&
-      saved.attempts.every(x => x && typeof x.guess === "string" && typeof x.correct === "boolean" && typeof x.skipped === "boolean"))) return saved;
+      saved.attempts.every(x => x && typeof x.guess === "string" && typeof x.correct === "boolean" && typeof x.skipped === "boolean"))) {
+    // Older completed crosswords have no measured time; don't invent 00:00.
+    return game === "cross" ? { ...saved, elapsedMs: validElapsedMs(saved.elapsedMs) ? saved.elapsedMs : saved.done ? null : 0 } : saved;
+  }
   return newState(game, puzzle);
 }
 
@@ -68,6 +71,7 @@ export function saveGame(game, puzzle, mode, state) {
       game, date: puzzle.date, mode, done: true, won: state.won, score: state.score,
       checks: game === "cross" ? state.checks : 0,
       reveals: game === "cross" ? state.revealCount ?? state.reveals.length : 0,
+      ...(game === "cross" && validElapsedMs(state.elapsedMs) ? { elapsedMs: state.elapsedMs } : {}),
       cloud: previous?.cloud === "recorded" ? "recorded" : "pending"
     }]);
     result = result && recorded;

@@ -21,7 +21,7 @@ service cloud.firestore {
     function validResult(id) {
       let r = request.resource.data;
       return request.auth != null
-        && r.keys().hasOnly(['playerId', 'date', 'game', 'score', 'won', 'checks', 'reveals', 'completedAt'])
+        && r.keys().hasOnly(['playerId', 'date', 'game', 'score', 'won', 'checks', 'reveals', 'completedAt', 'elapsedMs'])
         && r.keys().hasAll(['playerId', 'date', 'game', 'score', 'won', 'checks', 'reveals', 'completedAt'])
         && r.playerId == request.auth.uid
         && r.date is string && r.date.matches('20[0-9]{2}-[0-9]{2}-[0-9]{2}')
@@ -30,6 +30,7 @@ service cloud.firestore {
         && r.score is int && r.won is bool && r.won == (r.score > 0)
         && r.checks is int && r.checks >= 0 && r.checks <= 1000000
         && r.reveals is int && r.reveals >= 0 && r.reveals <= 121
+        && (!('elapsedMs' in r) || (r.game == 'cross' && r.elapsedMs is int && r.elapsedMs >= 0 && r.elapsedMs <= 9007199254740991))
         && ((r.game == 'player' && r.score >= 0 && r.score <= 5 && r.checks == 0 && r.reveals == 0)
           || (r.game == 'ladder' && r.score >= 0 && r.score <= 15 && r.checks == 0 && r.reveals == 0)
           || (r.game == 'cross' && r.score == 1))

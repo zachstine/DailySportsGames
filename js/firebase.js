@@ -62,6 +62,7 @@ export async function writeDailyResult(connection, result, expectedUid) {
   if (expectedUid && expectedUid !== playerId) throw new Error("The player account changed. This result stays with its original player.");
   const reference = store.doc(db, "results", `${playerId}_${date}_${game}`);
   const data = { playerId, date, game, score, won, checks, reveals };
+  if (result.elapsedMs !== undefined) data.elapsedMs = result.elapsedMs;
   try {
     await store.setDoc(reference, { ...data, completedAt: store.serverTimestamp() });
   } catch (error) {
@@ -83,8 +84,8 @@ export async function playerResultsForDate(connection, date) {
   const snapshot = await store.getDocsFromServer(query);
   if (auth.currentUser?.uid !== uid) throw new Error("The player account changed while loading results.");
   return snapshot.docs.map(doc => {
-    const { game, score, won, checks, reveals } = doc.data();
-    return { game, score, won, checks, reveals, date, mode: "daily", done: true };
+    const { game, score, won, checks, reveals, elapsedMs } = doc.data();
+    return { game, score, won, checks, reveals, ...(elapsedMs !== undefined ? { elapsedMs } : {}), date, mode: "daily", done: true };
   }).filter(validDailyResult);
 }
 

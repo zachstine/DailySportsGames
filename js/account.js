@@ -1,4 +1,4 @@
-import { dateKey, GAMES, GAME_NAMES } from "./core.js";
+import { dateKey, GAMES, GAME_NAMES, gameScoreLabel } from "./core.js";
 import { setPlayerScope, importRecordedResults, allResults, readLocal, writeLocal } from "./storage.js";
 import { configured, connectPlayer, ensurePlayerProfile, playerResultsForDate,
   signInPlayerWithEmail, signInPlayerWithGoogle, signOutPlayer } from "./firebase.js";
@@ -42,7 +42,7 @@ function showResults(records) {
   $("#account-date").textContent = dateKey();
   $("#account-results").innerHTML = GAMES.map(game => {
     const result = records.find(r => r.date === dateKey() && r.game === game && r.done);
-    const score = result ? game === "cross" ? "Complete" : `${result.score}/${game === "player" ? 5 : 15}` : "Not played";
+    const score = result ? gameScoreLabel(game, result) : "Not played";
     const assistance = result && game === "cross" ? `<small>${result.checks} checks · ${result.reveals} reveals</small>` : "";
     return `<div class="saved-score"><div><strong>${GAME_NAMES[game]}</strong>${assistance}</div><span>${score}</span></div>`;
   }).join("");

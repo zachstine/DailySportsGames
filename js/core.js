@@ -2,6 +2,43 @@ export const TIME_ZONE = "America/New_York";
 export const GAMES = ["player", "ladder", "cross"];
 export const GAME_NAMES = { player: "Player Guess", ladder: "Stat Ladder", cross: "CrossSport" };
 
+export function validElapsedMs(value) {
+  return Number.isSafeInteger(value) && value >= 0;
+}
+
+export function formatDuration(elapsedMs) {
+  if (!validElapsedMs(elapsedMs)) return "—";
+  const seconds = Math.floor(elapsedMs / 1000);
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor(seconds / 60) % 60;
+  return [hours || null, String(minutes).padStart(2, "0"), String(seconds % 60).padStart(2, "0")].filter(x => x !== null).join(":");
+}
+
+// Only time spent in the open crossword counts. A monotonic clock avoids
+// adding time while the tab is closed or when the system clock changes.
+export class SolveTimer {
+  constructor(elapsedMs = 0, now = () => performance.now()) {
+    this.total = validElapsedMs(elapsedMs) ? elapsedMs : 0;
+    this.now = now;
+    this.startedAt = null;
+  }
+  get running() { return this.startedAt !== null; }
+  start() { if (!this.running) this.startedAt = this.now(); }
+  elapsed() {
+    return Math.min(Number.MAX_SAFE_INTEGER, Math.floor(this.total + (this.running ? Math.max(0, this.now() - this.startedAt) : 0)));
+  }
+  pause() {
+    if (this.running) { this.total = this.elapsed(); this.startedAt = null; }
+    return this.total;
+  }
+}
+
+export function gameScoreLabel(game, result) {
+  if (!result) return "—";
+  if (game === "cross") return result.done ? validElapsedMs(result.elapsedMs) ? formatDuration(result.elapsedMs) : "Complete" : "In progress";
+  return `${result.score}/${game === "ladder" ? 15 : 5}`;
+}
+
 export function dateKey(value = new Date()) {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: TIME_ZONE, year: "numeric", month: "2-digit", day: "2-digit"
@@ -167,7 +204,7 @@ export function validatePuzzle(puzzle) {
 export function newState(game, puzzle) {
   if (game === "player") return { attempts: [], done: false, won: false, score: 0 };
   if (game === "ladder") return { attempts: [], done: false, won: false, score: 0 };
-  if (game === "cross") return { letters: Array(puzzle.crossSport.size ** 2).fill(""), checks: 0, reveals: [], done: false, won: false, score: 0 };
+  if (game === "cross") return { letters: Array(puzzle.crossSport.size ** 2).fill(""), checks: 0, reveals: [], elapsedMs: 0, done: false, won: false, score: 0 };
   throw new Error("Unknown game.");
 }
 
@@ -178,14 +215,15 @@ export function validDailyResult(result) {
   return Number.isInteger(score) && score >= 0 && score <= limit && won === (score > 0) &&
     Number.isInteger(checks) && checks >= 0 && checks <= 1000000 &&
     Number.isInteger(reveals) && reveals >= 0 && reveals <= 121 &&
-    (game === "cross" ? score === 1 : checks === 0 && reveals === 0);
+    (game === "cross" ? score === 1 : checks === 0 && reveals === 0) &&
+    (result.elapsedMs === undefined || game === "cross" && validElapsedMs(result.elapsedMs));
 }
 
 export function stateFromRecordedResult(result, puzzle) {
   if (!validDailyResult(result) || result.date !== puzzle.date) throw new Error("Invalid recorded result.");
   // A saved total does not contain the original guesses or revealed squares.
   return { ...newState(result.game, puzzle), done: true, won: result.won, score: result.score,
-    recordedOnly: true, ...(result.game === "cross" ? { checks: result.checks, revealCount: result.reveals } : {}) };
+    recordedOnly: true, ...(result.game === "cross" ? { checks: result.checks, revealCount: result.reveals, elapsedMs: result.elapsedMs ?? null } : {}) };
 }
 
 export function guessPlayer(state, puzzle, guess, skip = false) {
@@ -237,6 +275,7 @@ export function shareScore(game, state, puzzle, mode = "daily", url = "") {
     blocks = state.recordedOnly ? "Saved result" : state.attempts.map(a => a.correct ? "🟩" : a.skipped ? "⬜" : "🟥").join("");
   } else {
     score = state.done ? "Complete" : "In progress";
+    if (state.done && validElapsedMs(state.elapsedMs)) score += ` · ${formatDuration(state.elapsedMs)}`;
     const reveals = state.revealCount ?? state.reveals.length;
     blocks = `${reveals ? "🟨 Assisted" : "🟩 No reveals"} · ${state.checks} check${state.checks === 1 ? "" : "s"} · ${reveals} letter reveal${reveals === 1 ? "" : "s"}`;
   }

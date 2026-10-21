@@ -9,6 +9,8 @@ Run `npm run check`, `npm test`, and `npm run build` first. Then use this short 
 - Play Stat Ladder: miss a question, skip one, and get later ones right. Confirm the game continues and later questions carry more points. Try a perfect practice run.
 - Refresh halfway through every game. Confirm progress remains. Open the same game in a new tab after saving and check it restores.
 - CrossSport: tap a clue, enter a word, tap an intersection to switch direction, then try arrow keys and Backspace on desktop. Test pasting a whole word. Incorrect letters should be highlighted after Check grid; blank cells should remain unmarked.
+- Open CrossSport and watch the elapsed timer. Switch to another game or hide the tab, then return: away time must not count. Refresh halfway through: the timer must resume from the saved elapsed time. Complete the grid: the final time must stop and appear in the result, share text, account totals, and daily stats.
+- Open Your stats after an 8/15 Stat Ladder and a zero-point daily game. Today's score must show the actual points (including 0), with streak and days-played counts in separate columns. Unplayed games show a dash; practice must not replace daily scores. Older completed crosswords should say Complete without inventing 00:00.
 - Reveal a letter, finish the crossword, and confirm the shared result reports the reveal and every grid check. Completing without reveals should say so.
 - Open and close rules, stats, and share dialogs with keyboard and pointer. Escape should close dialogs. Keyboard focus should stay visible.
 - Copy the result into a text editor or group chat. It should contain the correct game, date, score, and blocks, with no answer. On a supported mobile browser, try the native Share button; canceling it should be harmless.
@@ -65,6 +67,8 @@ Use Firebase's authenticated and unauthenticated rule simulations (or the Emulat
 | Anyone using the client SDK: create/update/delete an owners document | Deny |
 | Signed-out visitor: create or read a result | Deny |
 | Anonymous guest: create a correctly shaped result for their UID and a released daily slate | Allow |
+| Player: create a crossword completion with nonnegative integer elapsedMs, or a legacy result without elapsedMs | Allow |
+| Player: attach elapsedMs to another game, or use a negative/fractional duration | Deny |
 | Anonymous guest: create a result for someone else's UID, a future slate, or a missing slate | Deny |
 | Anonymous guest: create a result with out-of-range score, extra fields, or a client completion timestamp | Deny |
 | Anonymous guest: get their own result | Allow |

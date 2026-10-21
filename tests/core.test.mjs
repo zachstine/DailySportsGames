@@ -2,10 +2,47 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { dateKey, validDate, shiftDate, releaseTime, normalize, matches, validatePuzzle, buildCrossword,
-  newState, guessPlayer, guessLadder, finishCrossword, streakStats, shareScore, stateFromRecordedResult } from "../js/core.js";
+  newState, guessPlayer, guessLadder, finishCrossword, streakStats, shareScore, stateFromRecordedResult,
+  SolveTimer, formatDuration, gameScoreLabel } from "../js/core.js";
 
 const sample = JSON.parse(readFileSync(new URL("../data/practice.json", import.meta.url)));
 const copy = () => structuredClone(sample);
+
+test("crossword timer excludes pauses, survives a saved resume, and freezes after completion", () => {
+  let now = 0;
+  const clock = new SolveTimer(0, () => now);
+  now = 5000; assert.equal(clock.elapsed(), 0);
+  clock.start(); now = 6250; clock.start();
+  assert.equal(clock.elapsed(), 1250); // Starting twice must not reset it.
+  clock.pause(); now = 206250; assert.equal(clock.elapsed(), 1250);
+  const resumed = new SolveTimer(clock.elapsed(), () => now);
+  resumed.start(); now += 61500;
+  assert.equal(resumed.pause(), 62750);
+  now += 60000; assert.equal(resumed.elapsed(), 62750);
+  assert.equal(formatDuration(resumed.elapsed()), "01:02");
+  assert.equal(formatDuration(3602000), "1:00:02");
+});
+
+test("score labels show earned points including 8/15 and zero, and no fabricated crossword time", () => {
+  let ladder = newState("ladder", sample);
+  for (const [i, question] of sample.statLadder.questions.entries()) ladder = guessLadder(ladder, sample, i === 2 || i === 4 ? question.answer : "Missed");
+  assert.equal(gameScoreLabel("ladder", ladder), "8/15");
+  assert.equal(gameScoreLabel("player", { score: 0, done: true }), "0/5");
+  assert.equal(gameScoreLabel("ladder", null), "—");
+  assert.equal(gameScoreLabel("cross", { done: true }), "Complete");
+  assert.equal(gameScoreLabel("cross", { done: true, elapsedMs: 123456 }), "02:03");
+});
+
+test("saved crossword durations restore and share with assistance while legacy totals remain untimed", () => {
+  const result = { game: "cross", date: sample.date, score: 1, won: true, checks: 2, reveals: 1, elapsedMs: 123456 };
+  const restored = stateFromRecordedResult(result, sample);
+  assert.equal(restored.elapsedMs, 123456);
+  const text = shareScore("cross", restored, sample);
+  assert.ok(text.includes("Complete · 02:03")); assert.ok(text.includes("2 checks · 1 letter reveal"));
+  const { elapsedMs, ...legacy } = result;
+  assert.equal(stateFromRecordedResult(legacy, sample).elapsedMs, null);
+  assert.ok(!shareScore("cross", stateFromRecordedResult(legacy, sample), sample).includes("00:00"));
+});
 
 test("the shipped practice slate is valid and its crossword has shared clue numbering", () => {
   assert.deepEqual(validatePuzzle(sample), []);

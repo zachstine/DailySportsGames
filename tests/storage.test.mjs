@@ -72,6 +72,22 @@ test("reload restores partial game progress; dates and modes stay isolated", () 
   assert.equal(loadGame("player", { ...sample, date: "2026-10-21" }, "daily").attempts.length, 0);
 });
 
+test("crossword elapsed time survives reload and result queues without treating older solves as zero seconds", () => {
+  setPlayerScope("timed-guest");
+  const state = { ...newState("cross", sample), elapsedMs: 75432 };
+  saveGame("cross", sample, "daily", state);
+  assert.equal(loadGame("cross", sample, "daily").elapsedMs, 75432);
+  saveGame("cross", sample, "daily", { ...state, done: true, won: true, score: 1 });
+  assert.equal(pendingResults()[0].elapsedMs, 75432);
+  importRecordedResults([{ ...pendingResults()[0], elapsedMs: 73000 }]);
+  assert.equal(allResults()[0].elapsedMs, 73000);
+  const { elapsedMs, ...legacy } = state;
+  writeLocal(gameKey("cross", sample, "daily"), { ...legacy, done: true, won: true, score: 1 });
+  assert.equal(loadGame("cross", sample, "daily").elapsedMs, null);
+  writeLocal(gameKey("cross", sample, "daily"), legacy);
+  assert.equal(loadGame("cross", sample, "daily").elapsedMs, 0);
+});
+
 test("finishing or reopening a daily game records its result once", () => {
   const state = guessPlayer(newState("player", sample), sample, "Jordan");
   saveGame("player", sample, "daily", state); saveGame("player", sample, "daily", state);

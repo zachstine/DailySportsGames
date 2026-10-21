@@ -1,5 +1,6 @@
 import { dateKey, shiftDate, releaseTime, GAME_NAMES, GAMES, buildCrossword, validatePuzzle,
-  guessPlayer, guessLadder, finishCrossword, streakStats, shareScore, stateFromRecordedResult } from "./core.js";
+  guessPlayer, guessLadder, finishCrossword, streakStats, shareScore, stateFromRecordedResult,
+  SolveTimer, validElapsedMs, formatDuration, gameScoreLabel } from "./core.js";
 import { loadGame, saveGame, allResults, storageAvailable, resetPractice, readPreview,
   pendingResults, markResultRecorded, resultRecorded, setPlayerScope, getPlayerScope, importRecordedResults, readLocal } from "./storage.js";
 import { configured, getDailyPuzzle, recordDailyResult, connectPlayer, playerResultsForDate, ensurePlayerProfile } from "./firebase.js";
@@ -13,6 +14,29 @@ let syncingResults = false;
 let playerConnection, playerUid = null, playerChangedDuringLoad = false;
 const accountRevision = readLocal("account-revision");
 const resultErrors = new Set();
+let crossTimer = null, crossTimerScope = null;
+
+function checkpointCrossTime(save = true) {
+  if (!crossTimer || !puzzle || !states.cross || crossTimerScope !== getPlayerScope()) return;
+  states.cross.elapsedMs = crossTimer.elapsed();
+  if (save) saveGame("cross", puzzle, mode, states.cross);
+}
+
+function stopCrossTimer() {
+  crossTimer?.pause(); checkpointCrossTime();
+}
+
+function syncCrossTimer() {
+  if (!crossTimer) return;
+  if (location.hash === "#cross" && !document.hidden && !states.cross.done && crossTimerScope === getPlayerScope()) crossTimer.start();
+  else crossTimer.pause();
+  checkpointCrossTime(); updateCrossTimer();
+}
+
+function updateCrossTimer() {
+  const display = $("#cross-timer");
+  if (display && states.cross) display.textContent = formatDuration(states.cross.elapsedMs);
+}
 
 async function getPractice() {
   if (!practicePuzzle) {
@@ -37,6 +61,7 @@ function showNotice(message, kind = "") {
 
 async function loadSlate(forcePractice = false) {
   if (busy) return;
+  stopCrossTimer(); crossTimer = null;
   busy = true; puzzle = null; states = {}; loadedDate = dateKey();
   $("#home-view").hidden = true; $("#game-view").hidden = true; $("#unavailable-view").hidden = true;
   showNotice("Loading the slate…");
@@ -78,13 +103,15 @@ async function loadSlate(forcePractice = false) {
         for (const record of records) {
           const state = states[record.game];
           if (!state.done || state.score !== record.score || record.game === "cross" &&
-            (state.checks !== record.checks || (state.revealCount ?? state.reveals.length) !== record.reveals)) {
+            (state.checks !== record.checks || (state.revealCount ?? state.reveals.length) !== record.reveals || (state.elapsedMs ?? null) !== (record.elapsedMs ?? null))) {
             states[record.game] = stateFromRecordedResult(record, puzzle);
           }
           saveGame(record.game, puzzle, mode, states[record.game]);
         }
       } catch { /* Local play and queued scores still work during a network failure. */ }
     }
+    crossTimerScope = getPlayerScope();
+    if (!states.cross.done) crossTimer = new SolveTimer(states.cross.elapsedMs);
     $("#reset-practice").hidden = mode === "daily";
     if (!storageAvailable) showNotice("Browser storage is unavailable. Games work, but progress and streaks won't survive a refresh.", "warning");
     renderDashboard(); route();
@@ -108,13 +135,14 @@ function renderDashboard() {
   $("#streak-summary").textContent = mode === "daily" ? longest ? `${longest}-day streak · Keep showing up` : "Your next daily ritual starts here" : mode === "preview" ? "Owner preview · No streaks recorded" : "Practice makes a sharper sports fan";
   for (const game of GAMES) {
     const state = states[game];
-    $(`[data-card-status="${game}"]`).textContent = state.done ? game === "cross" ? "Completed · View result" : `Finished · ${state.score}/${game === "player" ? 5 : 15} points` :
+    $(`[data-card-status="${game}"]`).textContent = state.done ? game === "cross" ? `Completed${validElapsedMs(state.elapsedMs) ? ` · ${formatDuration(state.elapsedMs)}` : ""} · View result` : `Finished · ${gameScoreLabel(game, state)} points` :
       (game === "cross" ? state.letters.some(Boolean) : state.attempts.length) ? "Continue playing" : mode === "daily" ? "Play today's game" : "Play practice game";
   }
 }
 
 function route() {
   if (!puzzle) return;
+  syncCrossTimer();
   const game = location.hash.slice(1);
   const inGame = GAMES.includes(game);
   $("#home-view").hidden = inGame; $("#game-view").hidden = !inGame; $("#unavailable-view").hidden = true;
@@ -129,6 +157,7 @@ function route() {
 }
 
 function persist(game) {
+  if (game === "cross") checkpointCrossTime(false);
   if (!saveGame(game, puzzle, mode, states[game])) toast("Progress couldn't be saved on this device. Keep this page open to continue.");
   renderDashboard();
   if (mode === "daily" && states[game].done) flushResults();
@@ -187,7 +216,8 @@ function resultPanel(game, heading, description) {
     ? `<a class="button secondary" href="#${nextGame}" aria-label="Next game: ${GAME_NAMES[nextGame]}">Next game →</a>`
     : `<a class="button secondary" href="#">View today's results</a>`;
   const sync = mode === "daily" ? `<p class="fine-print" role="status" data-result-sync="${game}" data-result-date="${puzzle.date}">${resultSyncMessage(game, puzzle.date)}</p><button class="text-button" data-action="retry-results" data-game="${game}" data-date="${puzzle.date}" ${resultRecorded(game, puzzle.date) ? "hidden" : ""} ${syncingResults ? "disabled" : ""}>Retry score recording</button>` : "";
-  return `<div class="result-panel"><p class="eyebrow">${mode === "daily" ? "DAILY RESULT" : mode === "preview" ? "OWNER PREVIEW RESULT" : "PRACTICE RESULT"}</p><h2>${heading}</h2>${game === "cross" ? "" : `<div class="result-score">${state.score}<span>/${game === "player" ? 5 : 15}</span></div>`}<p>${description}</p><div class="button-row"><button class="button" data-action="share" data-game="${game}">Share your score ↗</button>${nextLink}</div>${sync}</div>`;
+  const score = game === "cross" ? validElapsedMs(state.elapsedMs) ? `<div class="result-score">${formatDuration(state.elapsedMs)}<span class="result-time-label">SOLVE TIME</span></div>` : "" : `<div class="result-score">${state.score}<span>/${game === "player" ? 5 : 15}</span></div>`;
+  return `<div class="result-panel"><p class="eyebrow">${mode === "daily" ? "DAILY RESULT" : mode === "preview" ? "OWNER PREVIEW RESULT" : "PRACTICE RESULT"}</p><h2>${heading}</h2>${score}<p>${description}</p><div class="button-row"><button class="button" data-action="share" data-game="${game}">Share your score ↗</button>${nextLink}</div>${sync}</div>`;
 }
 
 function renderPlayer() {
@@ -215,7 +245,7 @@ function renderCross() {
   if (state.recordedOnly) { renderRecordedResult("cross"); return; }
   const cells = crossword.cells.map((cell, index) => cell ? `<div class="cross-cell ${state.reveals.includes(index) ? "revealed" : ""}" data-cell="${index}">${cell.number ? `<span aria-hidden="true">${cell.number}</span>` : ""}<input type="text" data-letter="${index}" value="${escape(state.letters[index])}" maxlength="1" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Row ${Math.floor(index / crossword.size) + 1}, column ${index % crossword.size + 1}${cell.number ? `, clue ${cell.number}` : ""}" aria-describedby="active-clue" ${state.done ? "readonly" : ""} tabindex="${index === activeCell ? "0" : "-1"}"></div>` : `<div class="cross-cell black" aria-hidden="true"></div>`).join("");
   const clues = direction => `<div><h3 class="${direction === "down" ? "down-heading" : ""}">${direction === "across" ? "Across" : "Down"}</h3>${crossword.entries.filter(e => e.direction === direction).sort((a, b) => a.number - b.number).map(e => `<button class="clue-button" data-clue="${e.id}"><strong>${e.number}</strong><span>${escape(e.clue)} (${e.answer.length})</span></button>`).join("")}</div>`;
-  $("#game-body").innerHTML = `<div class="play-panel"><div class="panel-meta"><span class="pill">${crossword.size} × ${crossword.size} MINI</span><span>${crossword.entries.length} clues · Take your time</span></div><div id="active-clue" class="cross-active-clue" aria-live="polite"></div><div class="cross-layout"><div><div class="cross-grid" style="grid-template-columns:repeat(${crossword.size},1fr);--cross-letter:${Math.max(14, Math.floor(130 / crossword.size))}px">${cells}</div><p id="cross-progress" class="cross-progress"></p>${state.done ? "" : `<div class="cross-tools"><button class="button secondary" data-action="check-cross">Check grid</button><button class="button secondary" data-action="reveal-cross">Reveal a letter</button></div>`}<p class="cross-footnote">Checks and revealed letters appear in your shared result.</p></div><div class="cross-clues">${clues("across")}${clues("down")}</div></div><div id="cross-result">${state.done ? crossResult() : ""}</div></div>`;
+  $("#game-body").innerHTML = `<div class="play-panel"><div class="panel-meta"><span class="pill">${crossword.size} × ${crossword.size} MINI</span><div class="cross-meta"><span>${crossword.entries.length} clues</span><span class="cross-clock">${state.done ? "Final time" : "Time"} <strong id="cross-timer" role="timer" aria-label="Elapsed solve time" aria-live="off">${formatDuration(state.elapsedMs)}</strong></span></div></div><div id="active-clue" class="cross-active-clue" aria-live="polite"></div><div class="cross-layout"><div><div class="cross-grid" style="grid-template-columns:repeat(${crossword.size},1fr);--cross-letter:${Math.max(14, Math.floor(130 / crossword.size))}px">${cells}</div><p id="cross-progress" class="cross-progress"></p>${state.done ? "" : `<div class="cross-tools"><button class="button secondary" data-action="check-cross">Check grid</button><button class="button secondary" data-action="reveal-cross">Reveal a letter</button></div>`}<p class="cross-footnote">The timer pauses away from this crossword. Time, checks, and reveals appear in your shared result.</p></div><div class="cross-clues">${clues("across")}${clues("down")}</div></div><div id="cross-result">${state.done ? crossResult() : ""}</div></div>`;
   paintCross();
 }
 
@@ -260,7 +290,10 @@ function chooseCell(index, toggle = false) {
 }
 
 function finishOrPaint() {
-  states.cross = finishCrossword(states.cross, crossword); persist("cross");
+  checkpointCrossTime(false);
+  states.cross = finishCrossword(states.cross, crossword);
+  if (states.cross.done) crossTimer?.pause();
+  persist("cross");
   if (states.cross.done) { renderCross(); toast("CrossSport complete. Nice solve!"); }
   else paintCross(true);
 }
@@ -338,9 +371,12 @@ function submitGuess(skip) {
 
 function showStats() {
   const records = allResults();
-  $("#stats-content").innerHTML = `<table class="stats-table"><thead><tr><th>Game</th><th>Streak</th><th>Best</th><th>Days played</th></tr></thead><tbody>${GAMES.map(game => {
+  $("#stats-content").innerHTML = `<table class="stats-table"><caption>Daily results · ${dateKey()}</caption><thead><tr><th scope="col">Game</th><th scope="col">Today's score</th><th scope="col">Streak</th><th scope="col">Best streak</th><th scope="col">Days played</th></tr></thead><tbody>${GAMES.map(game => {
     const stats = streakStats(records.filter(r => r.game === game), dateKey());
-    return `<tr><td>${GAME_NAMES[game]}</td><td>${stats.current}</td><td>${stats.best}</td><td>${stats.played}</td></tr>`;
+    const state = mode === "daily" && puzzle?.date === dateKey() ? states[game] : null;
+    const started = state && (state.done || (game === "cross" ? state.elapsedMs > 0 || state.letters.some(Boolean) : state.attempts.length > 0));
+    const result = records.find(r => r.date === dateKey() && r.game === game && r.done) || (started ? state : null);
+    return `<tr><td>${GAME_NAMES[game]}</td><td class="stats-score">${gameScoreLabel(game, result)}</td><td>${stats.current}</td><td>${stats.best}</td><td>${stats.played}</td></tr>`;
   }).join("")}</tbody></table>`;
   $("#stats-dialog").showModal();
 }
@@ -407,7 +443,8 @@ document.addEventListener("click", async event => {
 function tick() {
   // Background tabs may delay Firebase's auth event. Reopen the persisted
   // session after an explicit sign-in/out in another tab before resuming play.
-  if (readLocal("account-revision") !== accountRevision) { location.reload(); return; }
+  if (readLocal("account-revision") !== accountRevision) { stopCrossTimer(); location.reload(); return; }
+  if (crossTimer?.running) { checkpointCrossTime(); updateCrossTimer(); }
   const today = dateKey();
   $("#today-date").dateTime = today;
   $("#today-date").textContent = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short", month: "short", day: "numeric", year: "numeric" }).format(new Date());
@@ -419,6 +456,8 @@ function tick() {
 window.addEventListener("hashchange", () => { route(); window.scrollTo({ top: 0, behavior: "instant" }); });
 window.addEventListener("pageshow", event => { if (event.persisted) loadSlate(); });
 window.addEventListener("online", () => { if (mode === "daily") flushResults(); });
+document.addEventListener("visibilitychange", syncCrossTimer);
+window.addEventListener("pagehide", stopCrossTimer);
 
 async function initializePlayer() {
   if (!configured) return;
@@ -428,6 +467,7 @@ async function initializePlayer() {
     const applyUser = user => {
       const nextScope = user?.uid || "local-guest";
       const changed = Boolean(puzzle) && getPlayerScope() !== nextScope;
+      if (changed) stopCrossTimer();
       playerUid = user?.uid || null; setPlayerScope(nextScope);
       $("#account-link").textContent = !user || user.isAnonymous ? "Sign in" : "Account";
       if (changed) {

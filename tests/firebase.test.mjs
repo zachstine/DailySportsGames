@@ -36,6 +36,20 @@ test("zero-point completions and assisted crosswords are valid daily results", a
   assert.equal(client.writes[2].data.reveals, 2);
 });
 
+test("only crosswords accept a measured duration, and retries preserve the immutable original time", async () => {
+  const timed = { ...result, game: "cross", score: 1, checks: 2, reveals: 1, elapsedMs: 123456 };
+  const client = connection(); await writeDailyResult(client, timed);
+  assert.equal(client.writes[0].data.elapsedMs, 123456);
+  for (const elapsedMs of [-1, 1.5, null, Number.MAX_SAFE_INTEGER + 1]) {
+    await assert.rejects(writeDailyResult(client, { ...timed, elapsedMs }), /Invalid daily result/);
+  }
+  await assert.rejects(writeDailyResult(client, { ...result, elapsedMs: 1000 }), /Invalid daily result/);
+  const failure = Object.assign(new Error("immutable"), { code: "permission-denied" });
+  const existing = { ...client.writes[0].data, completedAt: "original-time" };
+  await writeDailyResult(connection({ failure, existing }), timed);
+  await assert.rejects(writeDailyResult(connection({ failure, existing }), { ...timed, elapsedMs: 123457 }), failure);
+});
+
 test("practice, preview, unfinished, and invalid results never reach the database writer", async () => {
   const client = connection();
   for (const change of [{ mode: "practice" }, { mode: "preview" }, { done: false }, { score: 6 }, { won: false }, { checks: 1 }, { date: "2026-02-30" }]) {
