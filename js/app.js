@@ -433,7 +433,7 @@ document.addEventListener("click", async event => {
     shareText = sharingAll ? shareSlate(states, puzzle, mode, mode === "preview" ? "" : url.href) : shareScore(game, states[game], puzzle, mode, mode === "preview" ? "" : url.href);
     $("#share-title").textContent = sharingAll ? "Your full slate." : "Your result.";
     $("#copy-share").textContent = sharingAll ? "Copy all scores" : "Copy score";
-    $("#share-text").value = shareText; $("#share-dialog").showModal();
+    $("#share-text").value = shareText; $("#share-text").rows = sharingAll ? 8 : 6; $("#share-dialog").showModal();
   }
   if (action === "copy-share") {
     try { await navigator.clipboard.writeText(shareText); toast(sharingAll ? "All scores copied. Send them to the group chat." : "Score copied. Send it to the group chat."); }

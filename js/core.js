@@ -280,21 +280,7 @@ function shareEdition(puzzle, mode) {
   return mode === "daily" ? puzzle.date : mode === "preview" ? "Owner preview" : "Practice";
 }
 
-export function shareSlate(states, puzzle, mode = "daily", url = "") {
-  if (!GAMES.every(game => states[game]?.done)) throw new Error("Finish all three games to share your full slate.");
-  const cross = states.cross;
-  const reveals = cross.revealCount ?? cross.reveals.length;
-  return [
-    `Daily Sports Games · ${shareEdition(puzzle, mode)}`,
-    `${GAME_NAMES.player}: ${gameScoreLabel("player", states.player)}`,
-    `${GAME_NAMES.ladder}: ${gameScoreLabel("ladder", states.ladder)}`,
-    `${GAME_NAMES.cross}: ${gameScoreLabel("cross", cross)} · ${cross.checks} check${cross.checks === 1 ? "" : "s"} · ${reveals} reveal${reveals === 1 ? "" : "s"}`,
-    url
-  ].filter(Boolean).join("\n");
-}
-
-export function shareScore(game, state, puzzle, mode = "daily", url = "") {
-  const label = shareEdition(puzzle, mode);
+function gameShareLines(game, state) {
   let score, blocks;
   if (game === "player") {
     score = `${state.score}/5`;
@@ -308,7 +294,20 @@ export function shareScore(game, state, puzzle, mode = "daily", url = "") {
     const reveals = state.revealCount ?? state.reveals.length;
     blocks = `${reveals ? "🟨 Assisted" : "🟩 No reveals"} · ${state.checks} check${state.checks === 1 ? "" : "s"} · ${reveals} letter reveal${reveals === 1 ? "" : "s"}`;
   }
-  return [`Daily Sports Games · ${label}`, `${GAME_NAMES[game]}: ${score}`, blocks, url].filter(Boolean).join("\n");
+  return [`${GAME_NAMES[game]}: ${score}`, blocks];
+}
+
+export function shareSlate(states, puzzle, mode = "daily", url = "") {
+  if (!GAMES.every(game => states[game]?.done)) throw new Error("Finish all three games to share your full slate.");
+  return [
+    `Daily Sports Games · ${shareEdition(puzzle, mode)}`,
+    ...GAMES.flatMap(game => gameShareLines(game, states[game])),
+    url
+  ].filter(Boolean).join("\n");
+}
+
+export function shareScore(game, state, puzzle, mode = "daily", url = "") {
+  return [`Daily Sports Games · ${shareEdition(puzzle, mode)}`, ...gameShareLines(game, state), url].filter(Boolean).join("\n");
 }
 
 export function puzzleFingerprint(puzzle) {
