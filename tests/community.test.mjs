@@ -1,7 +1,7 @@
 import test, { mock } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { GAMES, GAME_FIELDS, validatePuzzle } from "../js/core.js";
+import { BASE_GAMES as GAMES, GAME_FIELDS, validatePuzzle } from "../js/core.js";
 import { gameEnvelope, parseGameImport, validateGameImport, mergeGameIntoSlate, exportGameFromSlate, validCreatorName, samePuzzleData } from "../js/puzzles.js";
 import { importOwnerGame, persistOwnerSlate, saveOwnerCredits, submitCommunityPuzzle, saveSubmissionReview, rejectSubmission, submissionEnvelope } from "../js/community.js";
 

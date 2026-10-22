@@ -1,4 +1,4 @@
-import { GAME_FIELDS, GAMES, validDate, releaseTime, validatePuzzle } from "./core.js";
+import { GAME_FIELDS, GAMES, validDate, releaseTime, validatePuzzle, leagueOf, puzzlePath, LEAGUES, normalize } from "./core.js";
 import { creatorName, gameEnvelope, validateGameImport, validateCredits, mergeGameIntoSlate, SUBMISSION_STATUSES } from "./puzzles.js";
 
 const DAY_MS = 86400000;
@@ -77,30 +77,31 @@ async function readLinkedSubmissions(transaction, db, store, credits) {
   }
   return result;
 }
-function markPublished(transaction, store, linked, date, uid) {
+function markPublished(transaction, store, linked, date, uid, league = "general") {
   for (const { reference, data, name } of linked) {
-    const dates = [...new Set([...(data.publishedDates || []), date])];
-    if (dates.length > 30) throw new Error("This suggestion has already been used on 30 dates. Create a new suggestion to use it again.");
+    const dates = [...new Set([...(data.publishedDates || []), ...(league === "general" ? [date] : [])])];
+    const assignments = [...new Set([...(data.publishedAssignments || []), `${league}:${date}`])];
+    if (assignments.length > 30 || dates.length > 30) throw new Error("This suggestion has already been used on 30 dates. Create a new suggestion to use it again.");
     transaction.update(reference, {
-      status: "published", publishedDates: dates, publishedAt: store.serverTimestamp(),
+      status: "published", publishedDates: dates, publishedAssignments: assignments, publishedAt: store.serverTimestamp(),
       reviewedName: name, reviewedBy: uid, reviewedAt: store.serverTimestamp(), revision: data.revision + 1
     });
   }
 }
 
-export async function importOwnerGame(connection, date, envelope, expectedRevision, replace = false) {
+export async function importOwnerGame(connection, date, envelope, expectedRevision, replace = false, league = "general") {
   if (!validDate(date)) throw new Error("Choose a valid release date.");
   const errors = validateGameImport(envelope);
   if (errors.length) throw new Error(errors.join("\n"));
   const { db, store, auth } = connection;
-  const reference = store.doc(db, "dailyPuzzles", date);
+  const reference = store.doc(db, ...puzzlePath(date, league));
   return store.runTransaction(db, async transaction => {
     const snapshot = await transaction.get(reference);
     const old = snapshot.exists() ? snapshot.data() : null;
     checkRevision(old, expectedRevision); checkNotLive(old);
     const field = GAME_FIELDS[envelope.game];
     if (old?.puzzle?.[field] && Object.keys(old.puzzle[field]).length && !replace) throw fail("Confirm replacing this game's existing puzzle first.", "import/overwrite-required");
-    const merged = mergeGameIntoSlate(slateData(old), envelope, date);
+    const merged = mergeGameIntoSlate(slateData(old), envelope, date, league);
     const credit = merged.credits[envelope.game];
     const linked = await readLinkedSubmissions(transaction, db, store, credit ? { [envelope.game]: credit } : {});
     const revision = (old?.revision ?? 0) + 1;
@@ -117,7 +118,8 @@ export async function importOwnerGame(connection, date, envelope, expectedRevisi
       transaction.set(reference, { date, puzzle, credits, published: false,
         unlockAt: store.Timestamp.fromMillis(releaseTime(date)), ...metadata(store, auth.currentUser.uid, revision) });
     }
-    if (old?.published) markPublished(transaction, store, linked, date, auth.currentUser.uid);
+    if (envelope.game === "drill") transaction.set(store.doc(db, "drillKeys", date), drillKey(store, merged, old?.published || false));
+    if (old?.published) markPublished(transaction, store, linked, date, auth.currentUser.uid, league);
     return { slate: merged, revision, published: old?.published || false };
   });
 }
@@ -126,26 +128,38 @@ export async function persistOwnerSlate(connection, puzzle, publish, expectedRev
   const errors = [...validatePuzzle(puzzle), ...validateCredits(puzzle.credits)];
   if (errors.length) throw new Error(errors.join("\n"));
   const { db, store, auth } = connection;
-  const reference = store.doc(db, "dailyPuzzles", puzzle.date);
+  const league = leagueOf(puzzle);
+  const reference = store.doc(db, ...puzzlePath(puzzle.date, league));
+  const directoryRef = store.doc(db, "dailyEditions", puzzle.date);
   return store.runTransaction(db, async transaction => {
     const snapshot = await transaction.get(reference);
     const old = snapshot.exists() ? snapshot.data() : null;
     checkRevision(old, expectedRevision); checkNotLive(old);
     const { credits = {}, ...content } = puzzle;
     const linked = await readLinkedSubmissions(transaction, db, store, credits);
+    const directory = await transaction.get(directoryRef);
+    const general = !directory.exists() && league !== "general" ? await transaction.get(store.doc(db, "dailyPuzzles", puzzle.date)) : null;
+    const editions = directory.exists() ? directory.data().published : general?.exists() && general.data().published ? { general: true } : {};
     const revision = (old?.revision ?? 0) + 1;
     const data = { date: puzzle.date, puzzle: content, credits, published: publish,
       unlockAt: store.Timestamp.fromMillis(releaseTime(puzzle.date)), ...metadata(store, auth.currentUser.uid, revision) };
     if (old) transaction.update(reference, data); else transaction.set(reference, data);
-    if (publish) markPublished(transaction, store, linked, puzzle.date, auth.currentUser.uid);
+    transaction.set(directoryRef, { date: puzzle.date, published: { ...editions, [league]: publish }, unlockAt: store.Timestamp.fromMillis(releaseTime(puzzle.date)), updatedAt: store.serverTimestamp() });
+    if (league === "general" && (puzzle.twoMinuteDrill || old?.puzzle?.twoMinuteDrill)) transaction.set(store.doc(db, "drillKeys", puzzle.date), drillKey(store, puzzle.twoMinuteDrill ? puzzle : old.puzzle, Boolean(publish && puzzle.twoMinuteDrill)));
+    if (publish) markPublished(transaction, store, linked, puzzle.date, auth.currentUser.uid, league);
     return revision;
   });
 }
 
+function drillKey(store, puzzle, published) {
+  return { answers: puzzle.twoMinuteDrill.answers.map(x => normalize(x.answer)), published, unlockAt: store.Timestamp.fromMillis(releaseTime(puzzle.date)) };
+}
 async function readCreditDates(transaction, db, store, submission, id) {
   const targets = [];
-  for (const date of submission.publishedDates || []) {
-    const reference = store.doc(db, "dailyPuzzles", date);
+  for (const key of new Set([...(submission.publishedDates || []).map(date => `general:${date}`), ...(submission.publishedAssignments || [])])) {
+    const [league, date] = key.split(":");
+    if (!LEAGUES.includes(league) || !validDate(date)) continue;
+    const reference = store.doc(db, ...puzzlePath(date, league));
     const snapshot = await transaction.get(reference);
     if (snapshot.exists() && snapshot.data().credits?.[submission.game]?.submissionId === id) targets.push({ reference, data: snapshot.data() });
   }
@@ -183,11 +197,11 @@ export async function rejectSubmission(connection, submission) {
     transaction.update(reference, { status: "rejected", reviewedBy: auth.currentUser.uid, reviewedAt: store.serverTimestamp(), revision: submission.revision + 1 });
   });
 }
-export async function saveOwnerCredits(connection, date, credits, expectedRevision) {
+export async function saveOwnerCredits(connection, date, credits, expectedRevision, league = "general") {
   const errors = validateCredits(credits);
   if (errors.length) throw new Error(errors.join("\n"));
   const { db, store, auth } = connection;
-  const reference = store.doc(db, "dailyPuzzles", date);
+  const reference = store.doc(db, ...puzzlePath(date, league));
   return store.runTransaction(db, async transaction => {
     const snapshot = await transaction.get(reference);
     if (!snapshot.exists()) throw new Error("Save or import a slate for this date first.");
@@ -198,11 +212,11 @@ export async function saveOwnerCredits(connection, date, credits, expectedRevisi
       const targets = await readCreditDates(transaction, db, store, { ...link.data, game: link.game }, link.reference.id);
       changes.push({ ...link, targets });
     }
-    const patches = new Map([[date, { reference, data: old, credits: structuredClone(credits) }]]);
+    const patches = new Map([[reference.path, { reference, data: old, credits: structuredClone(credits) }]]);
     for (const change of changes) for (const target of change.targets) {
-      if (target.reference.id === date) continue;
-      const patch = patches.get(target.reference.id) || { ...target, credits: structuredClone(target.data.credits || {}) };
-      patch.credits[change.game].displayName = change.name; patches.set(target.reference.id, patch);
+      if (target.reference.path === reference.path) continue;
+      const patch = patches.get(target.reference.path) || { ...target, credits: structuredClone(target.data.credits || {}) };
+      patch.credits[change.game].displayName = change.name; patches.set(target.reference.path, patch);
     }
     for (const patch of patches.values()) transaction.update(patch.reference, { credits: patch.credits, ...metadata(store, auth.currentUser.uid, patch.data.revision + 1) });
     for (const change of changes) transaction.update(change.reference, { reviewedName: change.name, reviewedBy: auth.currentUser.uid, reviewedAt: store.serverTimestamp(), revision: change.data.revision + 1 });

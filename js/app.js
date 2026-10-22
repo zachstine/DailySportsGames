@@ -1,9 +1,11 @@
 import { dateKey, shiftDate, releaseTime, GAME_NAMES, GAMES, buildCrossword, validatePuzzle,
   guessPlayer, guessLadder, finishCrossword, streakStats, shareScore, shareSlate, stateFromRecordedResult,
-  SolveTimer, validElapsedMs, formatDuration, gameScoreLabel } from "./core.js";
+  SolveTimer, validElapsedMs, formatDuration, gameScoreLabel, gamesForPuzzle, leagueOf, LEAGUES, LEAGUE_NAMES, normalize, newState } from "./core.js";
 import { loadGame, saveGame, allResults, storageAvailable, resetPractice, readPreview,
   pendingResults, markResultRecorded, resultRecorded, setPlayerScope, getPlayerScope, importRecordedResults, readLocal, readPreviewContext } from "./storage.js";
-import { configured, getDailyPuzzle, recordDailyResult, connectPlayer, playerResultsForDate, ensurePlayerProfile } from "./firebase.js";
+import { configured, publishedEditions, getDailyPuzzle, recordDailyResult, connectPlayer, playerResultsForDate, ensurePlayerProfile } from "./firebase.js";
+import { placeGrid, gridBank, startDrill, finishDrill, guessDrill } from "./new-games.js";
+import { startRankedDrill, acceptRankedAnswer, publishDrillScore, drillLeaderboard } from "./leaderboard.js";
 import { validCreatorName } from "./puzzles.js";
 
 const $ = selector => document.querySelector(selector);
@@ -17,6 +19,11 @@ const accountRevision = readLocal("account-revision");
 const resultErrors = new Set();
 let crossTimer = null, crossTimerScope = null;
 let previewContext = null;
+let games = [], selectedLeague = "general", editionOptions = ["general"];
+let drillSubmitting = false, drillRanking = false, leaderboardDate = null, leaderboardRows = [], leaderboardError = "", leaderboardLoading = false;
+const currentLeague = () => leagueOf(puzzle);
+const hasStarted = (game, state) => game === "cross" ? state.letters.some(Boolean) : game === "grid" ? state.score > 0 || state.mistakes.some(Boolean) : game === "drill" ? state.startedAt !== null : state.attempts.length > 0;
+const recorded = (game, date) => resultRecorded(game, date, getPlayerScope(), currentLeague());
 const creditName = game => validCreatorName(puzzle?.credits?.[game]?.displayName) ? puzzle.credits[game].displayName : "";
 
 function checkpointCrossTime(save = true) {
@@ -70,6 +77,7 @@ async function loadSlate(forcePractice = false) {
   showNotice("Loading the slate…");
   try {
     const params = new URLSearchParams(location.search);
+    selectedLeague = LEAGUES.includes(params.get("league")) ? params.get("league") : "general";
     if (params.has("preview") && !forcePractice) {
       puzzle = readPreview(); mode = "preview";
       previewContext = readPreviewContext();
@@ -77,10 +85,12 @@ async function loadSlate(forcePractice = false) {
       showNotice(previewContext ? "Puzzle preview · Test freely. Your daily scores and streaks are unaffected." : "Owner preview · Test freely. This doesn't count toward daily streaks.");
     } else if (forcePractice || params.has("practice") || !configured) {
       puzzle = await getPractice(); mode = "practice";
-      showNotice(configured ? "Practice slate · Sample games. Daily streaks are unaffected." : "Demo mode · Try all three practice games. Daily publishing opens when Firebase is connected.");
+      showNotice(configured ? "Practice slate · Sample games. Daily streaks are unaffected." : "Demo mode · Try the practice games. Daily publishing opens when Firebase is connected.");
     } else {
       mode = "daily";
-      try { puzzle = await getDailyPuzzle(loadedDate); }
+      editionOptions = await publishedEditions(loadedDate);
+      if (!editionOptions.includes(selectedLeague)) selectedLeague = editionOptions.includes("general") ? "general" : editionOptions[0] || "general";
+      try { puzzle = await getDailyPuzzle(loadedDate, selectedLeague); }
       catch (error) {
         if (error.code !== "permission-denied") throw error;
       }
@@ -92,20 +102,26 @@ async function loadSlate(forcePractice = false) {
         $("#site-status").append(" ", retry);
       } else showNotice("");
     }
+    games = gamesForPuzzle(puzzle);
+    if (mode !== "daily") editionOptions = [currentLeague()];
+    $("#play-league").innerHTML = editionOptions.map(league => `<option value="${league}">${LEAGUE_NAMES[league]}</option>`).join("");
+    $("#play-league").value = currentLeague();
+    $("#play-league").disabled = mode !== "daily" || editionOptions.length < 2;
+    $("#edition-note").textContent = mode === "daily" ? `${LEAGUE_NAMES[currentLeague()]} · ${games.length} daily games${editionOptions.length > 1 ? " · Switch editions for more" : ""}` : "Sample games · scores do not count toward daily streaks";
     crossword = buildCrossword(puzzle.crossSport);
     activeEntry = crossword.entries[0].id; activeCell = crossword.entries[0].positions[0]; badLetters.clear();
-    for (const game of GAMES) {
+    for (const game of games) {
       states[game] = loadGame(game, puzzle, mode);
       if (mode === "daily" && states[game].done) saveGame(game, puzzle, mode, states[game]);
     }
     if (mode === "daily" && playerConnection?.auth.currentUser) {
       const uid = playerConnection.auth.currentUser.uid;
       try {
-        const records = await playerResultsForDate(playerConnection, puzzle.date);
+        const records = await playerResultsForDate(playerConnection, puzzle.date, currentLeague());
         if (uid !== playerUid) { playerChangedDuringLoad = true; return; }
         importRecordedResults(records);
         for (const record of records) {
-          const state = states[record.game];
+          const state = states[record.game]; if (!state) continue;
           if (!state.done || state.score !== record.score || record.game === "cross" &&
             (state.checks !== record.checks || (state.revealCount ?? state.reveals.length) !== record.reveals || (state.elapsedMs ?? null) !== (record.elapsedMs ?? null))) {
             states[record.game] = stateFromRecordedResult(record, puzzle);
@@ -114,6 +130,7 @@ async function loadSlate(forcePractice = false) {
         }
       } catch { /* Local play and queued scores still work during a network failure. */ }
     }
+    if (states.drill && !states.drill.recordedOnly) { states.drill = finishDrill(states.drill, Date.now(), puzzle.twoMinuteDrill.answers.length); if (states.drill.done) saveGame("drill", puzzle, mode, states.drill); }
     crossTimerScope = getPlayerScope();
     if (!states.cross.done) crossTimer = new SolveTimer(states.cross.elapsedMs);
     $("#reset-practice").hidden = mode === "daily";
@@ -132,17 +149,20 @@ async function loadSlate(forcePractice = false) {
 
 function renderDashboard() {
   if (!puzzle) return;
-  const done = GAMES.filter(game => states[game].done).length;
+  const done = games.filter(game => states[game].done).length;
   $("#slate-label").textContent = mode === "daily" ? "THE DAILY SLATE" : mode === "preview" ? "OWNER PREVIEW" : "PRACTICE SLATE";
-  $("#completed-count").innerHTML = `${done}<span>/3</span>`;
-  $("#share-all-scores").disabled = done !== GAMES.length;
-  $("#slate-share-message").textContent = done === GAMES.length ? "All three games complete. Send your results in one text." : "Finish all three games to share your full slate. No spoilers.";
-  const longest = Math.max(0, ...GAMES.map(game => streakStats(allResults().filter(r => r.game === game), loadedDate).current));
+  $("#completed-count").innerHTML = `${done}<span>/${games.length}</span>`;
+  $("#share-all-scores").disabled = done !== games.length;
+  $("#slate-share-message").textContent = done === games.length ? `All ${games.length} games complete. Send your results in one text.` : `Finish all ${games.length} games to share your full slate. No spoilers.`;
+  const longest = Math.max(0, ...games.map(game => streakStats(allResults().filter(r => r.game === game && leagueOf(r) === currentLeague()), loadedDate).current));
   $("#streak-summary").textContent = mode === "daily" ? longest ? `${longest}-day streak · Keep showing up` : "Your next daily ritual starts here" : mode === "preview" ? "Owner preview · No streaks recorded" : "Practice makes a sharper sports fan";
-  for (const game of GAMES) {
+  $("#account-link").href = `./account.html${currentLeague() === "general" ? "" : `?league=${currentLeague()}`}`;
+  $("#hero-game-count").textContent = `${games.length} games to put your sports brain to work.`;
+  for (const game of GAMES) { const card = $(`[href="#${game}"].game-card`); if (card) { card.hidden = !games.includes(game); card.querySelector(".sport-chip").textContent = game === "drill" ? "120 SECONDS" : game === "grid" ? "9 NAMES" : currentLeague() === "general" ? "ALL SPORTS" : LEAGUE_NAMES[currentLeague()]; } }
+  for (const game of games) {
     const state = states[game];
-    $(`[data-card-status="${game}"]`).textContent = state.done ? game === "cross" ? `Completed${validElapsedMs(state.elapsedMs) ? ` · ${formatDuration(state.elapsedMs)}` : ""} · View result` : `Finished · ${gameScoreLabel(game, state)} points` :
-      (game === "cross" ? state.letters.some(Boolean) : state.attempts.length) ? "Continue playing" : mode === "daily" ? "Play today's game" : "Play practice game";
+    $(`[data-card-status="${game}"]`).textContent = state.done ? game === "cross" ? `Completed${validElapsedMs(state.elapsedMs) ? ` · ${formatDuration(state.elapsedMs)}` : ""} · View result` : `Finished · ${gameScoreLabel(game, state)} ${game === "drill" ? "" : game === "grid" ? "matches" : "points"}` :
+      hasStarted(game, state) ? "Continue playing" : mode === "daily" ? "Play today's game" : "Play practice game";
   }
 }
 
@@ -151,7 +171,7 @@ function route() {
   syncCrossTimer();
   let game = location.hash.slice(1);
   if (mode === "preview" && previewContext && game !== previewContext.game) { game = previewContext.game; history.replaceState(null, "", `#${game}`); }
-  const inGame = GAMES.includes(game);
+  const inGame = games.includes(game);
   $("#home-view").hidden = inGame; $("#game-view").hidden = !inGame; $("#unavailable-view").hidden = true;
   if (!inGame) { document.title = "Daily Sports Games — Your daily sports fix"; renderDashboard(); return; }
   document.title = `${GAME_NAMES[game]} — Daily Sports Games`;
@@ -161,11 +181,13 @@ function route() {
   const back = $("#game-back-link");
   back.href = previewContext ? previewContext.href : "#";
   back.textContent = previewContext ? previewContext.href === "./create/" ? "← Back to puzzle creator" : "← Back to submission review" : "← All games";
-  $("#game-edition").textContent = `${mode === "daily" ? puzzle.date : mode === "preview" ? previewContext ? "PUZZLE PREVIEW" : "OWNER PREVIEW" : "PRACTICE SLATE"} / ${puzzle.title}`;
-  $("#game-description").textContent = { player: "One player. Five clues. Can you call it from one telling fact?", ladder: "Five questions. One guess each. Climb from the obvious to the obscure.", cross: "A little sports knowledge goes a long way. Fill the grid, one cross at a time." }[game];
+  $("#game-edition").textContent = `${mode === "daily" ? puzzle.date : mode === "preview" ? previewContext ? "PUZZLE PREVIEW" : "OWNER PREVIEW" : "PRACTICE SLATE"} / ${currentLeague() === "general" ? "" : `${LEAGUE_NAMES[currentLeague()]} / `}${puzzle.title}`;
+  $("#game-description").textContent = { player: "One player. Five clues. Can you call it from one telling fact?", ladder: "Five questions. One guess each. Climb from the obvious to the obscure.", cross: "A little sports knowledge goes a long way. Fill the grid, one cross at a time.", grid: "Nine names. Nine stats. Find the perfect match for every square.", drill: "One question. Unlimited guesses. Make every second count." }[game];
   if (game === "player") renderPlayer();
   if (game === "ladder") renderLadder();
   if (game === "cross") renderCross();
+  if (game === "grid") renderGrid();
+  if (game === "drill") { renderDrill(); if (mode === "daily" && leaderboardDate !== puzzle.date) refreshLeaderboard(); }
 }
 
 function persist(game) {
@@ -176,8 +198,8 @@ function persist(game) {
 }
 
 function resultSyncMessage(game, date) {
-  if (resultRecorded(game, date)) return "Finish all three games to send full results. Result recorded online. Progress and streaks stay on this device.";
-  if (resultErrors.has(`${getPlayerScope()}:${date}:${game}`)) return "Saved on this device. Online score recording is unavailable; try again or return later.";
+  if (recorded(game, date)) return "Finish this edition to send full results. Result recorded online. Progress and streaks stay on this device.";
+  if (resultErrors.has(`${getPlayerScope()}:${date}:${currentLeague()}:${game}`)) return "Saved on this device. Online score recording is unavailable; try again or return later.";
   return "Saved on this device · Recording your result…";
 }
 
@@ -186,7 +208,7 @@ function refreshResultMessages() {
     element.textContent = resultSyncMessage(element.dataset.resultSync, element.dataset.resultDate);
   }
   for (const button of document.querySelectorAll('[data-action="retry-results"]')) {
-    button.hidden = resultRecorded(button.dataset.game, button.dataset.date);
+    button.hidden = recorded(button.dataset.game, button.dataset.date);
     button.disabled = syncingResults;
   }
 }
@@ -199,13 +221,13 @@ async function flushResults() {
   try {
     for (;;) {
       if (scope !== getPlayerScope()) break;
-      const result = pendingResults(scope).find(r => !attempted.has(`${r.date}:${r.game}`));
+      const result = pendingResults(scope).find(r => !attempted.has(`${r.date}:${leagueOf(r)}:${r.game}`));
       if (!result) break;
-      const key = `${result.date}:${result.game}`;
+      const key = `${result.date}:${leagueOf(result)}:${result.game}`;
       attempted.add(key); resultErrors.delete(`${scope}:${key}`); refreshResultMessages();
       try {
         await recordDailyResult(result, scope);
-        markResultRecorded(result.game, result.date, scope);
+        markResultRecorded(result.game, result.date, scope, leagueOf(result));
       } catch { resultErrors.add(`${scope}:${key}`); }
       refreshResultMessages();
     }
@@ -221,15 +243,15 @@ function answerForm(label, placeholder) {
 
 function resultPanel(game, heading, description) {
   const state = states[game];
-  const index = GAMES.indexOf(game);
-  const remaining = [...GAMES.slice(index + 1), ...GAMES.slice(0, index)];
+  const index = games.indexOf(game);
+  const remaining = [...games.slice(index + 1), ...games.slice(0, index)];
   const nextGame = remaining.find(next => !states[next].done);
   const nextLink = previewContext ? `<a class="button secondary" href="${previewContext.href}">Back to ${previewContext.href === "./create/" ? "puzzle creator" : "submission review"}</a>` : nextGame
     ? `<a class="button secondary" href="#${nextGame}" aria-label="Next game: ${GAME_NAMES[nextGame]}">Next game →</a>`
     : `<a class="button secondary" href="#">View today's results</a>`;
-  const sync = mode === "daily" ? `<p class="fine-print" role="status" data-result-sync="${game}" data-result-date="${puzzle.date}">${resultSyncMessage(game, puzzle.date)}</p><button class="text-button" data-action="retry-results" data-game="${game}" data-date="${puzzle.date}" ${resultRecorded(game, puzzle.date) ? "hidden" : ""} ${syncingResults ? "disabled" : ""}>Retry score recording</button>` : "";
-  const score = game === "cross" ? validElapsedMs(state.elapsedMs) ? `<div class="result-score">${formatDuration(state.elapsedMs)}<span class="result-time-label">SOLVE TIME</span></div>` : "" : `<div class="result-score">${state.score}<span>/${game === "player" ? 5 : 15}</span></div>`;
-  const allDone = !previewContext && GAMES.every(game => states[game].done);
+  const sync = mode === "daily" ? `<p class="fine-print" role="status" data-result-sync="${game}" data-result-date="${puzzle.date}">${resultSyncMessage(game, puzzle.date)}</p><button class="text-button" data-action="retry-results" data-game="${game}" data-date="${puzzle.date}" ${recorded(game, puzzle.date) ? "hidden" : ""} ${syncingResults ? "disabled" : ""}>Retry score recording</button>` : "";
+  const score = game === "cross" ? validElapsedMs(state.elapsedMs) ? `<div class="result-score">${formatDuration(state.elapsedMs)}<span class="result-time-label">SOLVE TIME</span></div>` : "" : `<div class="result-score">${state.score}<span>${game === "drill" ? ` answer${state.score === 1 ? "" : "s"}` : `/${game === "player" ? 5 : game === "ladder" ? 15 : 9}`}</span></div>`;
+  const allDone = !previewContext && games.every(game => states[game].done);
   const shareAll = allDone ? `<button class="button" data-action="share-all">Share all scores ↗</button>` : "";
   const shareSingle = previewContext ? "" : `<button class="button${allDone ? " secondary" : ""}" data-action="share" data-game="${game}">Share your score ↗</button>`;
   return `<div class="result-panel"><p class="eyebrow">${mode === "daily" ? "DAILY RESULT" : mode === "preview" ? "PREVIEW RESULT" : "PRACTICE RESULT"}</p><h2>${heading}</h2>${creditName(game) ? `<p class="creator-credit">Submitted by ${escape(creditName(game))}</p>` : ""}${score}<p>${description}</p><div class="button-row">${shareAll}${shareSingle}${nextLink}</div>${sync}</div>`;
@@ -251,6 +273,104 @@ function renderLadder() {
   const rungs = Array.from({ length: 5 }, (_, i) => `<span class="rung ${state.attempts[i] ? state.attempts[i].correct ? "correct" : "incorrect" : i === current ? "active" : ""}" aria-label="Rung ${i + 1}${state.attempts[i] ? state.attempts[i].correct ? ": correct" : ": missed" : ""}">${state.attempts[i] ? state.attempts[i].correct ? "✓" : "×" : i + 1}</span>`).join("");
   const previous = current ? puzzle.statLadder.questions[current - 1] : null;
   $("#game-body").innerHTML = `<div class="play-panel"><div class="panel-meta"><span class="pill">${state.done ? "THE TOP RUNG" : `${escape(question.sport)} · ${["WARM-UP", "GETTING WARMER", "IN THE WEEDS", "DEEP CUT", "EXPERT TERRITORY"][current]}`}</span><span>${state.score}/15 points</span></div><div class="rungs">${rungs}</div>${state.done ? resultPanel("ladder", state.score === 15 ? "A perfect climb." : state.score >= 9 ? "You know your numbers." : "That's a wrap.", `You got ${state.attempts.filter(a => a.correct).length} of 5 questions right. Each rung was worth a little more.`) : `${previous ? `<div class="last-answer">Last rung: <strong>${state.attempts[current - 1].correct ? "Correct ✓" : "Missed"}</strong> · ${escape(previous.answer)}</div>` : ""}<p class="eyebrow">RUNG ${current + 1} / 5 · WORTH ${current + 1} POINT${current ? "S" : ""}</p><h2 class="stat-question">${escape(question.question)}</h2>${answerForm("Your answer", "Enter a name")}`}${state.done ? `<div class="answer-review"><p class="eyebrow">THE ANSWER SHEET</p>${puzzle.statLadder.questions.map((q, i) => `<details><summary>${state.attempts[i].correct ? "✓" : "×"} Rung ${i + 1} · ${escape(q.answer)}</summary><p>${escape(q.question)}</p><p>Your answer: ${escape(state.attempts[i].guess)}</p><a href="${escape(q.source)}" target="_blank" rel="noopener noreferrer">Check the source ↗</a></details>`).join("")}</div>` : ""}</div>`;
+}
+
+function renderGrid() {
+  const state = states.grid;
+  if (state.recordedOnly) { renderRecordedResult("grid"); return; }
+  const mistakes = state.mistakes.reduce((a, b) => a + b, 0);
+  const bank = gridBank(puzzle).map(name => `<button type="button" class="bank-name ${state.selected === name ? "selected" : ""}" data-bank-name="${name}" aria-pressed="${state.selected === name}" ${state.placements.includes(name) ? "disabled" : ""}>${escape(puzzle.gridIron.names[name])}${state.placements.includes(name) ? " ✓" : ""}</button>`).join("");
+  const cells = puzzle.gridIron.cells.map((cell, i) => `<button type="button" class="match-cell ${state.placements[i] !== null ? state.mistakes[i] ? "matched assisted" : "matched" : ""}" data-match-cell="${i}" ${state.placements[i] !== null || state.done ? "disabled" : ""} aria-label="Row ${Math.floor(i / 3) + 1}, column ${i % 3 + 1}: ${escape(cell.clue)}${state.placements[i] !== null ? `, matched ${escape(cell.answer)}` : ""}"><span class="match-position">0${i + 1}</span><span class="match-clue">${escape(cell.clue)}</span>${state.placements[i] !== null ? `<strong>${escape(cell.answer)} ✓</strong>` : `<span class="match-empty">${state.selected !== null ? "Place selected name +" : "Choose a name below"}</span>`}</button>`).join("");
+  $("#game-body").innerHTML = `<div class="play-panel"><div class="panel-meta"><span class="pill">THE MATCHUP</span><span>${state.score}/9 matched · ${mistakes} miss${mistakes === 1 ? "" : "es"}</span></div><p class="match-instruction" role="status">${state.done ? "Every name is in its place." : state.selected === null ? "Pick a name from the bank, then tap its matching square." : `Selected: ${escape(puzzle.gridIron.names[state.selected])}. Choose a square.`}</p><div class="match-grid">${cells}</div>${state.done ? resultPanel("grid", mistakes ? "A complete lineup." : "A perfect matchup.", `All nine matched · ${mistakes} miss${mistakes === 1 ? "" : "es"}. Green squares were solved first try; yellow squares took another guess.`) : `<div class="bank-heading"><h2>Your starting nine</h2><span>${9 - state.score} left</span></div><div class="name-bank">${bank}</div><p class="fine-print">Correct matches lock in. Misses stay open. Unlimited retries.</p>`}</div>`;
+}
+
+function leaderboardPanel() {
+  if (mode !== "daily") return `<section class="leaderboard"><div class="bank-heading"><h2>The daily leaderboard</h2><span>DAILY ONLY</span></div><p class="fine-print">Practice and previews are unranked. Published daily Drills rank signed-in players by unique answers; ties share a place.</p></section>`;
+  return `<section class="leaderboard"><div class="bank-heading"><h2>Today’s leaderboard</h2><button class="text-button" data-action="refresh-leaderboard" ${leaderboardLoading ? "disabled" : ""}>${leaderboardLoading ? "Loading…" : "Refresh ↻"}</button></div><p class="fine-print">Top 25 · Unique answers · Ties share a place · Public nicknames only</p>${leaderboardError ? `<p class="notice warning" role="status">${escape(leaderboardError)}</p>` : leaderboardRows.length ? `<table class="leaderboard-table"><caption class="sr-only">Two Minute Drill daily leaderboard</caption><thead><tr><th scope="col">Place</th><th scope="col">Player</th><th scope="col">Answers</th></tr></thead><tbody>${leaderboardRows.map(row => `<tr class="${row.id === playerUid ? "your-rank" : ""}"><td>${row.rank === 1 ? "🥇" : `#${row.rank}`}</td><td>${escape(row.displayName)}${row.id === playerUid ? " (you)" : ""}</td><td>${row.score}</td></tr>`).join("")}</tbody></table>` : `<p class="leaderboard-empty">${leaderboardLoading ? "Loading today’s results…" : "The field is open. Finish a ranked run to set the pace."}</p>`}</section>`;
+}
+
+function renderDrill() {
+  const state = states.drill, data = puzzle.twoMinuteDrill;
+  const remaining = state.startedAt === null ? 120000 : Math.max(0, state.deadline - Date.now());
+  const user = playerConnection?.auth.currentUser, canRank = mode === "daily" && user && !user.isAnonymous;
+  const found = state.found || [];
+  const review = state.done && !state.recordedOnly ? `<div class="drill-review"><h2>The answer sheet</h2><ul>${data.answers.map(answer => `<li class="${found.includes(normalize(answer.answer)) ? "found" : "missed"}"><span aria-hidden="true">${found.includes(normalize(answer.answer)) ? "✓" : "—"}</span> ${escape(answer.answer)}</li>`).join("")}</ul></div>` : "";
+  let body;
+  if (state.done) body = `${resultPanel("drill", state.score === data.answers.length ? "You cleared the field." : "That’s the final whistle.", `${state.score} unique answer${state.score === 1 ? "" : "s"} in two minutes.${state.ranked ? " Your ranked run is final." : ""}`)}${state.ranked ? `<p class="fine-print" role="status">${escape(state.rankMessage || "Submitting your leaderboard score…")}</p>${state.rankPosted ? "" : '<button class="button secondary" data-action="post-drill-score">Retry leaderboard submission</button>'}` : ""}${review}`;
+  else if (state.startedAt === null) body = `<div class="drill-start"><p>Read the question. Hit start when you’re ready. Guess as many unique answers as possible before the clock runs out.</p><ul><li>Unlimited guesses · no penalty for a miss</li><li>Repeated answers count once</li><li>The timer keeps running through tab switches and reloads</li></ul>${canRank ? `<div class="field"><label for="drill-nickname">Public leaderboard nickname</label><input id="drill-nickname" maxlength="24" autocomplete="nickname" value="${escape(readLocal(`drill-name:${user.uid}`, ""))}" placeholder="e.g. SportsFan24"><p class="fine-print">Choose 2–24 letters, numbers, spaces, dots, underscores, or hyphens. Your email and account name stay private.</p></div><div class="button-row"><button class="button" data-action="start-drill-ranked" ${drillRanking ? "disabled" : ""}>${drillRanking ? "Connecting your clock…" : "Start ranked run →"}</button><button class="button secondary" data-action="start-drill" ${drillRanking ? "disabled" : ""}>Play unranked</button></div>` : `<div class="button-row"><button class="button" data-action="start-drill">Start 2:00 clock →</button>${mode === "daily" ? '<a class="button secondary" href="./account.html">Sign in to rank</a>' : ""}</div>`}<p class="fine-print">One daily attempt per player. ${canRank ? "Starting again resumes your existing ranked run." : mode === "daily" ? "Guest scores stay unranked." : "Reset practice to try again."}</p></div>`;
+  else body = `<form id="drill-form" class="answer-form"><label for="drill-answer">Name an answer</label><div class="input-row"><input id="drill-answer" maxlength="120" required autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="Keep them coming…" ${drillSubmitting || !remaining ? "disabled" : ""}><button class="button" type="submit" ${drillSubmitting || !remaining ? "disabled" : ""}>${drillSubmitting ? "Checking…" : "Submit ↗"}</button></div></form><p id="drill-feedback" class="drill-feedback" role="status">${escape(state.feedback || "The clock is running. Go!")}</p><div class="drill-found"><h2>On the board <span>${state.score}</span></h2><div class="found-names">${found.map(key => `<span>✓ ${escape(data.answers.find(answer => normalize(answer.answer) === key)?.answer || key)}</span>`).join("") || '<p class="fine-print">Your correct answers will appear here.</p>'}</div></div>`;
+  $("#game-body").innerHTML = `<div class="play-panel drill-panel"><div class="panel-meta"><span class="pill">${state.ranked ? "RANKED RUN" : mode === "daily" ? "DAILY DRILL" : "PRACTICE DRILL"}</span><span>${state.score} answer${state.score === 1 ? "" : "s"}</span></div><div class="drill-clock ${remaining <= 30000 && !state.done ? "clock-urgent" : ""}"><span>${state.done ? "FINAL WHISTLE" : "TIME REMAINING"}</span><strong id="drill-timer" role="timer" aria-live="off">${state.done ? "00:00" : formatDuration(Math.ceil(remaining / 1000) * 1000)}</strong><div class="clock-track"><i id="drill-clock-fill" style="width:${state.done ? 0 : remaining / 1200}%"></i></div></div><p class="eyebrow">THE QUESTION</p><h2 class="drill-question">${escape(data.question)}</h2>${body}<div id="leaderboard-panel">${leaderboardPanel()}</div></div>`;
+}
+
+async function refreshLeaderboard() {
+  if (mode !== "daily" || !puzzle?.twoMinuteDrill || leaderboardLoading) return;
+  const date = puzzle.date; if (leaderboardDate !== date) leaderboardRows = []; leaderboardDate = date; leaderboardLoading = true; leaderboardError = "";
+  if (location.hash === "#drill" && $("#leaderboard-panel")) $("#leaderboard-panel").innerHTML = leaderboardPanel();
+  try {
+    const connection = playerConnection || await connectPlayer();
+    const rows = await drillLeaderboard(connection, date);
+    if (puzzle?.date === date) leaderboardRows = rows;
+  } catch { leaderboardError = "Leaderboard could not load. Your game still works. Try Refresh."; }
+  finally { leaderboardLoading = false; if (location.hash === "#drill" && puzzle?.date === date && states.drill && $("#leaderboard-panel")) $("#leaderboard-panel").innerHTML = leaderboardPanel(); }
+}
+
+async function startDrillRun(ranked) {
+  if (!states.drill || states.drill.done || states.drill.startedAt !== null || drillRanking) return;
+  if (!ranked) { states.drill = startDrill(states.drill); persist("drill"); renderDrill(); $("#drill-answer")?.focus(); return; }
+  const nickname = $("#drill-nickname")?.value.trim(), activePuzzle = puzzle, uid = playerUid;
+  if (!validCreatorName(nickname)) { toast("Choose a public nickname of 2–24 letters, numbers, spaces, dots, underscores, or hyphens."); return; }
+  drillRanking = true; writeLocal(`drill-name:${uid}`, nickname); renderDrill();
+  try {
+    const run = await startRankedDrill(playerConnection, puzzle.date, nickname);
+    if (puzzle !== activePuzzle || playerUid !== uid) return;
+    states.drill = finishDrill({ ...newState("drill", puzzle), startedAt: run.startedAt, deadline: run.deadline, found: run.found, score: run.found.length, ranked: true }, Date.now(), puzzle.twoMinuteDrill.answers.length);
+    persist("drill"); if (states.drill.done) postDrillScore();
+  } catch (error) { toast(error.code === "permission-denied" ? "The ranked clock could not start. Check your connection or try unranked play." : error.message); }
+  finally { drillRanking = false; if (puzzle === activePuzzle && location.hash === "#drill") { renderDrill(); $("#drill-answer")?.focus(); } }
+}
+
+async function submitDrillGuess() {
+  if (drillSubmitting || !states.drill || states.drill.done) return;
+  const input = $("#drill-answer"), guess = input?.value || "", activePuzzle = puzzle, uid = playerUid;
+  try {
+    const result = guessDrill(states.drill, puzzle, guess);
+    if (result.outcome === "correct" && states.drill.ranked) {
+      drillSubmitting = true; input.disabled = true; $("#drill-form button").disabled = true;
+      const found = await acceptRankedAnswer(playerConnection, puzzle.date, result.key, uid);
+      if (puzzle !== activePuzzle || playerUid !== uid) return;
+      result.state = finishDrill({ ...states.drill, found, score: found.length }, Date.now(), puzzle.twoMinuteDrill.answers.length);
+    }
+    states.drill = { ...result.state, feedback: result.outcome === "correct" ? "Correct! Keep going." : result.outcome === "duplicate" ? "Already on your board. Try another." : result.outcome === "finished" ? "Time’s up." : "Not on today’s list. Keep guessing." };
+    persist("drill"); renderDrill();
+    if (states.drill.done && states.drill.ranked) postDrillScore(); else $("#drill-answer")?.focus();
+  } catch (error) { toast(error.code === "permission-denied" ? "That answer could not be recorded before the server deadline. Try again if time remains." : error.message || "Connection interrupted. Try this answer again; the clock continues."); }
+  finally { drillSubmitting = false; if (puzzle === activePuzzle && location.hash === "#drill") { renderDrill(); $("#drill-answer")?.focus(); } }
+}
+
+async function postDrillScore() {
+  const state = states.drill, activePuzzle = puzzle, uid = playerUid;
+  if (!state?.done || !state.ranked || state.rankPosted || state.rankPosting) return;
+  state.rankPosting = true;
+  try {
+    const verified = await publishDrillScore(playerConnection, puzzle.date, uid);
+    if (puzzle !== activePuzzle || playerUid !== uid) return;
+    state.found = verified.found; state.score = verified.score; state.won = verified.score > 0;
+    state.rankPosted = true; state.rankMessage = "Your ranked score is saved. The board shows today’s top 25."; refreshLeaderboard();
+  } catch { state.rankMessage = "Your run is saved. Leaderboard submission is pending; use Retry when connected."; }
+  finally { state.rankPosting = false; if (puzzle === activePuzzle) { persist("drill"); if (location.hash === "#drill") renderDrill(); } }
+}
+
+function tickDrill() {
+  const state = states.drill;
+  if (!state || state.recordedOnly || state.startedAt === null) return;
+  if (state.done) { if (state.ranked && !state.rankPosted && !state.rankMessage) postDrillScore(); return; }
+  const remaining = Math.max(0, state.deadline - Date.now());
+  if ($( "#drill-timer")) {
+    $("#drill-timer").textContent = formatDuration(Math.ceil(remaining / 1000) * 1000);
+    $("#drill-clock-fill").style.width = `${remaining / 1200}%`;
+    $("#drill-timer").closest(".drill-clock").classList.toggle("clock-urgent", remaining <= 30000);
+  }
+  if (!remaining && !drillSubmitting) { states.drill = finishDrill(state); persist("drill"); if (location.hash === "#drill") renderDrill(); if (state.ranked) postDrillScore(); }
 }
 
 function selectedEntry() { return crossword.entries.find(entry => entry.id === activeEntry) || crossword.entries[0]; }
@@ -369,6 +489,7 @@ document.addEventListener("keydown", event => {
 });
 
 document.addEventListener("submit", event => {
+  if (event.target.id === "drill-form") { event.preventDefault(); submitDrillGuess(); return; }
   if (event.target.id !== "answer-form") return;
   event.preventDefault(); submitGuess(false);
 });
@@ -385,11 +506,11 @@ function submitGuess(skip) {
 }
 
 function showStats() {
-  const records = allResults();
-  $("#stats-content").innerHTML = `<table class="stats-table"><caption>Daily results · ${dateKey()}</caption><thead><tr><th scope="col">Game</th><th scope="col">Today's score</th><th scope="col">Streak</th><th scope="col">Best streak</th><th scope="col">Days played</th></tr></thead><tbody>${GAMES.map(game => {
+  const records = allResults().filter(r => leagueOf(r) === currentLeague());
+  $("#stats-content").innerHTML = `<table class="stats-table"><caption>Daily results · ${LEAGUE_NAMES[currentLeague()]} · ${dateKey()}</caption><thead><tr><th scope="col">Game</th><th scope="col">Today's score</th><th scope="col">Streak</th><th scope="col">Best streak</th><th scope="col">Days played</th></tr></thead><tbody>${games.map(game => {
     const stats = streakStats(records.filter(r => r.game === game), dateKey());
     const state = mode === "daily" && puzzle?.date === dateKey() ? states[game] : null;
-    const started = state && (state.done || (game === "cross" ? state.elapsedMs > 0 || state.letters.some(Boolean) : state.attempts.length > 0));
+    const started = state && (state.done || hasStarted(game, state));
     const result = records.find(r => r.date === dateKey() && r.game === game && r.done) || (started ? state : null);
     return `<tr><td>${GAME_NAMES[game]}</td><td class="stats-score">${gameScoreLabel(game, result)}</td><td>${stats.current}</td><td>${stats.best}</td><td>${stats.played}</td></tr>`;
   }).join("")}</tbody></table>`;
@@ -399,6 +520,17 @@ function showStats() {
 document.addEventListener("click", async event => {
   const closer = event.target.closest("[data-close]");
   if (closer) { closer.closest("dialog").close(); return; }
+  const name = event.target.closest("[data-bank-name]");
+  if (name && states.grid && !states.grid.done) { states.grid.selected = +name.dataset.bankName; persist("grid"); renderGrid(); return; }
+  const match = event.target.closest("[data-match-cell]");
+  if (match && states.grid && !states.grid.done) {
+    if (states.grid.selected === null) { toast("Pick a name from the bank first."); return; }
+    const chosen = states.grid.selected;
+    states.grid = placeGrid(states.grid, puzzle, +match.dataset.matchCell, chosen); persist("grid"); renderGrid();
+    if (!states.grid.lastCorrect) { toast("Not that square. Keep the name selected and try another."); $(`[data-match-cell="${match.dataset.matchCell}"]`)?.focus({ preventScroll: true }); }
+    else if (!states.grid.done) $("[data-bank-name]:not(:disabled)")?.focus({ preventScroll: true });
+    return;
+  }
   const clue = event.target.closest("[data-clue]");
   if (clue) {
     activeEntry = +clue.dataset.clue;
@@ -410,6 +542,10 @@ document.addEventListener("click", async event => {
   const button = event.target.closest("[data-action]");
   if (!button) return;
   const action = button.dataset.action;
+  if (action === "start-drill") startDrillRun(false);
+  if (action === "start-drill-ranked") startDrillRun(true);
+  if (action === "refresh-leaderboard") refreshLeaderboard();
+  if (action === "post-drill-score") postDrillScore();
   if (action === "instructions") $("#instructions-dialog").showModal();
   if (action === "stats") showStats();
   if (action === "skip") submitGuess(true);
@@ -425,15 +561,15 @@ document.addEventListener("click", async event => {
   if (action === "share" || action === "share-all") {
     sharingAll = action === "share-all";
     const game = button.dataset.game;
-    if (!puzzle || (sharingAll ? !GAMES.every(game => states[game]?.done) : !states[game]?.done)) {
-      toast(sharingAll ? "Finish all three games to share your full slate." : "Finish this game to share its score."); return;
+    if (!puzzle || (sharingAll ? !games.every(game => states[game]?.done) : !states[game]?.done)) {
+      toast(sharingAll ? "Finish all games in this edition to share your full slate." : "Finish this game to share its score."); return;
     }
-    const url = new URL("./index.html", location.href); url.hash = sharingAll ? "" : game;
+    const url = new URL("./index.html", location.href); if (currentLeague() !== "general") url.searchParams.set("league", currentLeague()); url.hash = sharingAll ? "" : game;
     if (mode === "practice") url.searchParams.set("practice", "1");
     shareText = sharingAll ? shareSlate(states, puzzle, mode, mode === "preview" ? "" : url.href) : shareScore(game, states[game], puzzle, mode, mode === "preview" ? "" : url.href);
     $("#share-title").textContent = sharingAll ? "Your full slate." : "Your result.";
     $("#copy-share").textContent = sharingAll ? "Copy all scores" : "Copy score";
-    $("#share-text").value = shareText; $("#share-text").rows = sharingAll ? 8 : 6; $("#share-dialog").showModal();
+    $("#share-text").value = shareText; $("#share-text").rows = sharingAll ? Math.min(18, shareText.split("\n").length) : 6; $("#share-dialog").showModal();
   }
   if (action === "copy-share") {
     try { await navigator.clipboard.writeText(shareText); toast(sharingAll ? "All scores copied. Send them to the group chat." : "Score copied. Send it to the group chat."); }
@@ -465,13 +601,14 @@ function tick() {
   // Background tabs may delay Firebase's auth event. Reopen the persisted
   // session after an explicit sign-in/out in another tab before resuming play.
   if (readLocal("account-revision") !== accountRevision) { stopCrossTimer(); location.reload(); return; }
+  tickDrill();
   if (crossTimer?.running) { checkpointCrossTime(); updateCrossTimer(); }
   const today = dateKey();
   $("#today-date").dateTime = today;
   $("#today-date").textContent = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short", month: "short", day: "numeric", year: "numeric" }).format(new Date());
   const seconds = Math.max(0, Math.floor((releaseTime(shiftDate(today, 1)) - Date.now()) / 1000));
   $("#reset-countdown").textContent = [Math.floor(seconds / 3600), Math.floor(seconds / 60) % 60, seconds % 60].map(n => String(n).padStart(2, "0")).join(":");
-  if (today !== loadedDate && !busy) loadSlate();
+  if (today !== loadedDate && !busy && !(states.drill?.startedAt && !states.drill.done)) loadSlate();
 }
 
 window.addEventListener("hashchange", () => { route(); window.scrollTo({ top: 0, behavior: "instant" }); });
@@ -501,4 +638,8 @@ async function initializePlayer() {
   } catch { /* Firebase account access is optional; games stay playable locally. */ }
 }
 
+$("#play-league").addEventListener("change", async event => {
+  const url = new URL(location.href); if (event.target.value === "general") url.searchParams.delete("league"); else url.searchParams.set("league", event.target.value); url.hash = "";
+  history.replaceState(null, "", url); await loadSlate();
+});
 await initializePlayer(); await loadSlate(); tick(); setInterval(tick, 1000);

@@ -1,4 +1,4 @@
-import { GAMES, GAME_FIELDS, GAME_NAMES, dateKey, validDate, validateGame, validatePuzzle } from "./core.js";
+import { GAMES, GAME_FIELDS, GAME_NAMES, dateKey, validDate, validateGame, validatePuzzle, leagueOf, gamesForLeague, LEAGUES, LEAGUE_NAMES } from "./core.js";
 
 export const SUBMISSION_STATUSES = ["pending", "approved", "rejected", "published"];
 export function validCreatorName(value) {
@@ -22,19 +22,25 @@ export function blankGame(game) {
   if (game === "player") return { answer: "", sport: "", aliases: [], hints: Array(5).fill("") };
   if (game === "ladder") return { questions: Array.from({ length: 5 }, () => ({ question: "", answer: "", sport: "", aliases: [], source: "" })) };
   if (game === "cross") return { size: 5, entries: [] };
+  if (game === "grid") return { names: [], cells: Array.from({ length: 9 }, () => ({ clue: "", answer: "" })) };
+  if (game === "drill") return { question: "", answers: [] };
   throw new Error("Choose a game.");
 }
-export function blankSlate(date = dateKey()) {
-  return { schemaVersion: 1, date, title: "Daily slate", ...Object.fromEntries(GAMES.map(game => [GAME_FIELDS[game], blankGame(game)])), credits: {} };
+export function blankSlate(date = dateKey(), league = "general") {
+  const result = { schemaVersion: 1, date, title: "Daily slate", ...(league !== "general" ? { league } : {}), ...Object.fromEntries(gamesForLeague(league).map(game => [GAME_FIELDS[game], blankGame(game)])), credits: {} };
+  if (league !== "general") { result.playerGuess.sport = LEAGUE_NAMES[league]; for (const question of result.statLadder.questions) question.sport = LEAGUE_NAMES[league]; }
+  return result;
 }
-export function editorSlate(source, date = dateKey()) {
-  const result = { ...blankSlate(date), ...structuredClone(source || {}), date };
-  for (const game of GAMES) result[GAME_FIELDS[game]] = { ...blankGame(game), ...result[GAME_FIELDS[game]] };
+export function editorSlate(source, date = dateKey(), league = leagueOf(source)) {
+  const defaults = blankSlate(date, league);
+  if (source) for (const game of ["grid", "drill"]) if (!source[GAME_FIELDS[game]]) delete defaults[GAME_FIELDS[game]];
+  const result = { ...defaults, ...structuredClone(source || {}), date };
+  for (const game of gamesForLeague(league)) if (["player", "ladder", "cross"].includes(game) || result[GAME_FIELDS[game]]) result[GAME_FIELDS[game]] = { ...blankGame(game), ...result[GAME_FIELDS[game]] };
   result.credits ||= {};
   return result;
 }
-export function gameEnvelope(game, data, publicName = "", submissionId) {
-  const result = { schemaVersion: 1, game, creatorCredit: creatorName(publicName), data: structuredClone(data), ...(submissionId ? { submissionId } : {}) };
+export function gameEnvelope(game, data, publicName = "", submissionId, league) {
+  const result = { schemaVersion: 1, game, creatorCredit: creatorName(publicName), data: structuredClone(data), ...(submissionId ? { submissionId } : {}), ...(league && league !== "general" ? { league } : {}) };
   const errors = validateGameImport(result);
   if (errors.length) throw new Error(errors.join("\n"));
   return result;
@@ -44,7 +50,8 @@ export function validateGameImport(value) {
   if (value.playerGuess || value.statLadder || value.crossSport) return ["This is a full-slate backup. Export one selected game from the owner desk; each import must identify exactly one game."];
   const errors = [];
   if (value.schemaVersion !== 1) errors.push("Game JSON schemaVersion must be 1.");
-  if (Object.keys(value).some(key => !["schemaVersion", "game", "creatorCredit", "submissionId", "data"].includes(key))) errors.push("Game JSON contains an unexpected field. Select its release date in the owner desk.");
+  if (Object.keys(value).some(key => !["schemaVersion", "game", "creatorCredit", "submissionId", "data", "league"].includes(key))) errors.push("Game JSON contains an unexpected field. Select its release date in the owner desk.");
+  if (value.league !== undefined && (!LEAGUES.includes(value.league) || !gamesForLeague(value.league).includes(value.game))) errors.push("This game is not available in that league edition.");
   errors.push(...validateGame(value.game, value.data));
   try { creatorName(value.creatorCredit); } catch (error) { errors.push(error.message); }
   if (value.creatorCredit !== undefined && typeof value.creatorCredit !== "string") errors.push("Creator credit must be text.");
@@ -58,13 +65,14 @@ export function parseGameImport(text) {
   try { value = JSON.parse(text.replace(/^\uFEFF/, "")); } catch { throw new Error("This isn't valid JSON. Copy a game export from the review page or owner desk."); }
   const errors = validateGameImport(value);
   if (errors.length) throw new Error(errors.join("\n"));
-  return gameEnvelope(value.game, value.data, value.creatorCredit, value.submissionId);
+  return gameEnvelope(value.game, value.data, value.creatorCredit, value.submissionId, value.league);
 }
-export function mergeGameIntoSlate(existing, envelope, date) {
+export function mergeGameIntoSlate(existing, envelope, date, league = leagueOf(existing)) {
   if (!validDate(date)) throw new Error("Choose a valid release date.");
   const errors = validateGameImport(envelope);
   if (errors.length) throw new Error(errors.join("\n"));
-  const result = structuredClone(existing || { schemaVersion: 1, date, title: "Daily slate" });
+  if (!gamesForLeague(league).includes(envelope.game) || envelope.league && envelope.league !== league) throw new Error("The imported game belongs to a different league. Switch editions first.");
+  const result = structuredClone(existing || { schemaVersion: 1, date, title: "Daily slate", ...(league !== "general" ? { league } : {}) });
   if (result.date !== date) throw new Error("The selected date changed. Load that date before importing.");
   result[GAME_FIELDS[envelope.game]] = structuredClone(envelope.data);
   result.credits = { ...(result.credits || {}) };
@@ -74,7 +82,7 @@ export function mergeGameIntoSlate(existing, envelope, date) {
 }
 export function exportGameFromSlate(slate, game) {
   const credit = slate.credits?.[game];
-  return gameEnvelope(game, slate[GAME_FIELDS[game]], credit?.displayName, credit?.submissionId);
+  return gameEnvelope(game, slate[GAME_FIELDS[game]], credit?.displayName, credit?.submissionId, leagueOf(slate));
 }
 export function gameImportMessage(game, date) {
   return `A ${GAME_NAMES[game]} puzzle already exists for ${date}. Do you want to replace it? Only ${GAME_NAMES[game]} will change.`;

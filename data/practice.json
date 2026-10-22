@@ -4,7 +4,11 @@
   "title": "The opening slate",
   "playerGuess": {
     "answer": "Michael Jordan",
-    "aliases": ["Jordan", "MJ", "Michael Jeffrey Jordan"],
+    "aliases": [
+      "Jordan",
+      "MJ",
+      "Michael Jeffrey Jordan"
+    ],
     "sport": "NBA",
     "hints": [
       "I played a professional team sport in North America.",
@@ -16,20 +20,177 @@
   },
   "statLadder": {
     "questions": [
-      {"question": "Who scored 100 points in a single NBA game in 1962?", "answer": "Wilt Chamberlain", "aliases": ["Chamberlain", "Wilt"], "sport": "NBA", "source": "https://www.nba.com/news/history-top-moments-wilt-chamberlain-scores-100"},
-      {"question": "Which player hit 73 home runs in the 2001 MLB regular season?", "answer": "Barry Bonds", "aliases": ["Bonds"], "sport": "MLB", "source": "https://www.mlb.com/player/barry-bonds-111188"},
-      {"question": "Who rushed for 2,105 yards in the 1984 NFL regular season?", "answer": "Eric Dickerson", "aliases": ["Dickerson"], "sport": "NFL", "source": "https://www.profootballhof.com/players/eric-dickerson/"},
-      {"question": "Who led MLB with 70 stolen bases in the 2004 regular season?", "answer": "Scott Podsednik", "aliases": ["Podsednik"], "sport": "MLB", "source": "https://baseballsavant.mlb.com/savant-player/scott-podsednik-325392"},
-      {"question": "Who led the NBA with 13.9 assists per game in the 1984–85 regular season?", "answer": "Isiah Thomas", "aliases": ["Thomas", "Isiah"], "sport": "NBA", "source": "https://www.nba.com/news/history-nba-legend-isiah-thomas"}
+      {
+        "question": "Who scored 100 points in a single NBA game in 1962?",
+        "answer": "Wilt Chamberlain",
+        "aliases": [
+          "Chamberlain",
+          "Wilt"
+        ],
+        "sport": "NBA",
+        "source": "https://www.nba.com/news/history-top-moments-wilt-chamberlain-scores-100"
+      },
+      {
+        "question": "Which player hit 73 home runs in the 2001 MLB regular season?",
+        "answer": "Barry Bonds",
+        "aliases": [
+          "Bonds"
+        ],
+        "sport": "MLB",
+        "source": "https://www.mlb.com/player/barry-bonds-111188"
+      },
+      {
+        "question": "Who rushed for 2,105 yards in the 1984 NFL regular season?",
+        "answer": "Eric Dickerson",
+        "aliases": [
+          "Dickerson"
+        ],
+        "sport": "NFL",
+        "source": "https://www.profootballhof.com/players/eric-dickerson/"
+      },
+      {
+        "question": "Who led MLB with 70 stolen bases in the 2004 regular season?",
+        "answer": "Scott Podsednik",
+        "aliases": [
+          "Podsednik"
+        ],
+        "sport": "MLB",
+        "source": "https://baseballsavant.mlb.com/savant-player/scott-podsednik-325392"
+      },
+      {
+        "question": "Who led the NBA with 13.9 assists per game in the 1984–85 regular season?",
+        "answer": "Isiah Thomas",
+        "aliases": [
+          "Thomas",
+          "Isiah"
+        ],
+        "sport": "NBA",
+        "source": "https://www.nba.com/news/history-nba-legend-isiah-thomas"
+      }
     ]
   },
   "crossSport": {
     "size": 5,
     "entries": [
-      {"row": 0, "col": 0, "direction": "across", "answer": "BALL", "clue": "What a pitcher throws, or LaMelo's last name"},
-      {"row": 2, "col": 0, "direction": "across", "answer": "RONDO", "clue": "Rajon ___, point guard on Boston's 2008 title team"},
-      {"row": 0, "col": 0, "direction": "down", "answer": "BIRD", "clue": "Larry ___, Celtics legend known as The Hick from French Lick"},
-      {"row": 0, "col": 2, "direction": "down", "answer": "LINKS", "clue": "Golf courses, in the phrase hit the ___"}
+      {
+        "row": 0,
+        "col": 0,
+        "direction": "across",
+        "answer": "BALL",
+        "clue": "What a pitcher throws, or LaMelo's last name"
+      },
+      {
+        "row": 2,
+        "col": 0,
+        "direction": "across",
+        "answer": "RONDO",
+        "clue": "Rajon ___, point guard on Boston's 2008 title team"
+      },
+      {
+        "row": 0,
+        "col": 0,
+        "direction": "down",
+        "answer": "BIRD",
+        "clue": "Larry ___, Celtics legend known as The Hick from French Lick"
+      },
+      {
+        "row": 0,
+        "col": 2,
+        "direction": "down",
+        "answer": "LINKS",
+        "clue": "Golf courses, in the phrase hit the ___"
+      }
+    ]
+  },
+  "gridIron": {
+    "names": [
+      "Tom Brady",
+      "Michael Jordan",
+      "Serena Williams",
+      "Patrick Mahomes",
+      "Gregg Popovich",
+      "Joe Torre",
+      "Lionel Messi",
+      "Tiger Woods",
+      "Caitlin Clark"
+    ],
+    "cells": [
+      {
+        "clue": "Won six championships as New England’s quarterback.",
+        "answer": "Tom Brady"
+      },
+      {
+        "clue": "Won six NBA championships with Chicago.",
+        "answer": "Michael Jordan"
+      },
+      {
+        "clue": "Won 23 Grand Slam singles titles in tennis.",
+        "answer": "Serena Williams"
+      },
+      {
+        "clue": "Texas Tech quarterback drafted by Kansas City in 2017.",
+        "answer": "Patrick Mahomes"
+      },
+      {
+        "clue": "Head coach for all five of San Antonio’s NBA championships.",
+        "answer": "Gregg Popovich"
+      },
+      {
+        "clue": "Managed the Yankees to four World Series titles from 1996–2000.",
+        "answer": "Joe Torre"
+      },
+      {
+        "clue": "Captained Argentina to the 2022 men’s World Cup title.",
+        "answer": "Lionel Messi"
+      },
+      {
+        "clue": "Won the Masters five times, including in 2019.",
+        "answer": "Tiger Woods"
+      },
+      {
+        "clue": "Wore number 22 while playing college basketball at Iowa.",
+        "answer": "Caitlin Clark"
+      }
+    ]
+  },
+  "twoMinuteDrill": {
+    "question": "Name the five NFL teams with bird nicknames.",
+    "answers": [
+      {
+        "answer": "Arizona Cardinals",
+        "aliases": [
+          "Cardinals",
+          "Arizona"
+        ]
+      },
+      {
+        "answer": "Atlanta Falcons",
+        "aliases": [
+          "Falcons",
+          "Atlanta"
+        ]
+      },
+      {
+        "answer": "Baltimore Ravens",
+        "aliases": [
+          "Ravens",
+          "Baltimore"
+        ]
+      },
+      {
+        "answer": "Philadelphia Eagles",
+        "aliases": [
+          "Eagles",
+          "Philadelphia"
+        ]
+      },
+      {
+        "answer": "Seattle Seahawks",
+        "aliases": [
+          "Seahawks",
+          "Seattle"
+        ]
+      }
     ]
   }
 }

@@ -1,4 +1,4 @@
-import { GAMES, GAME_NAMES } from "./core.js";
+import { BASE_GAMES as GAMES, GAME_NAMES } from "./core.js";
 import { blankGame, creatorName, gameEnvelope, previewSlate } from "./puzzles.js";
 import { GameEditor, showErrors } from "./game-editor.js";
 import { readLocal, writeLocal, writePreview, resetPractice } from "./storage.js";

@@ -1,6 +1,6 @@
 # Daily Sports Games
 
-Three mobile-friendly daily games, built with HTML, CSS, and JavaScript. GitHub Pages serves the website; Firebase Authentication and Cloud Firestore power optional player accounts, a private puzzle review queue, and the owner puzzle desk. No production npm dependencies, paid sports API, Cloud Functions, or storage bucket are needed.
+Five mobile-friendly General games and optional three-game league editions, built with HTML, CSS, and JavaScript. GitHub Pages serves the website; Firebase Authentication and Cloud Firestore power optional player accounts, a private puzzle review queue, and the owner puzzle desk. No production npm dependencies, paid sports API, Cloud Functions, or storage bucket are needed.
 
 ## Run it locally
 
@@ -12,7 +12,7 @@ npm run dev
 
 Open **http://localhost:3000**. The owner editor is at **http://localhost:3000/admin.html**. You can also use VS Code's Live Server. Open over HTTP, rather than double-clicking the HTML files, because the application uses JavaScript modules and fetch.
 
-With `firebase-config.js` blank, the site offers a clearly labeled **practice slate**. All three games, saved progress, score sharing, the local editor, JSON import/export, and previews work. Daily streaks and cloud publishing activate after Firebase is configured. There are no fake daily puzzles or fake streaks.
+With `firebase-config.js` blank, the site offers a clearly labeled **practice slate**. All five General games, saved progress, score sharing, the local editor, JSON import/export, and previews work. Daily streaks and cloud publishing activate after Firebase is configured. There are no fake daily puzzles or fake streaks.
 
 ## The first-version rules
 
@@ -24,7 +24,7 @@ With `firebase-config.js` blank, the site offers a clearly labeled **practice sl
 
 All daily games reset at **midnight America/New_York**, including daylight saving changes. Answers accept case, spacing, punctuation, and accent variations; alternate names must be included explicitly as aliases. Player Guess's opening clue should give a knowledgeable fan a real chance on the first guess: use a precise season statistic or distinctive career fact, then add supporting detail, career context, team/era, and a signature clue. Verify the season and numbers before publishing. Sources are required for Stat Ladder questions. Avoid vague season references like “2025–2026 NFL passing”: specify, for example, **2025 NFL regular season, passing yards**.
 
-Each game has a **completion streak**: consecutive daily dates on which the player finishes that game, even with a zero score. This avoids treating Stat Ladder and CrossSport as binary wins. Streaks and unfinished progress stay in that browser, separated by player identity. Completed daily scores are also recorded in Firestore using a persistent guest identity or an optional Google/email account. Practice and owner previews never count or submit results. Shared results include no answers. CrossSport measures active solve time from opening the crossword until completion. The timer pauses on other games and hidden tabs, resumes after refresh, and includes its final time with checks and reveals in the shared result. Timer checkpoints stay local; only the completed daily time is sent to Firestore. Older completed puzzles have no invented time. Your stats shows today's points or crossword solve time alongside completion streaks. Once all three games are finished, **Share all scores** on the home screen or a completed game sends one compact text with all three scores, crossword time/checks/reveals, and one game link. The share dialog supports copying and the phone's native share menu; it never includes answers.
+Each game and league edition has a **completion streak**: consecutive daily dates on which the player finishes that game, even with a zero score. This avoids treating Stat Ladder and CrossSport as binary wins. Streaks and unfinished progress stay in that browser, separated by player identity. Completed daily scores are also recorded in Firestore using a persistent guest identity or an optional Google/email account. Practice and owner previews never count or submit results. Shared results include no answers. CrossSport measures active solve time from opening the crossword until completion. The timer pauses on other games and hidden tabs, resumes after refresh, and includes its final time with checks and reveals in the shared result. Timer checkpoints stay local; only the completed daily time is sent to Firestore. Older completed puzzles have no invented time. Your stats shows today's points or crossword solve time alongside completion streaks. Once all games in the selected edition are finished, **Share all scores** on the home screen or a completed game sends one compact text with all of that edition’s scores, crossword time/checks/reveals, and one game link. The share dialog supports copying and the phone's native share menu; it never includes answers.
 
 If today's slate hasn't been published, the home page shows clearly labeled practice games and a button to check for the daily slate. Practice scores are kept separate. The owner must publish a slate for every daily date.
 
@@ -67,10 +67,10 @@ Open **`create/`** from **Create a Puzzle** on the home page. Friends choose Pla
 2. Review the proposed name and puzzle. Edit the public name and content, preview, then **Approve**. Approval does not publish anything. Copy or download the approved game JSON.
 3. At the owner desk choose a date and **Load date**. Paste the approved JSON or upload the one-game file. **Import game to this date** saves only that game and its creator credit. Existing slots require a confirmation naming the game and date; stale revisions are rejected.
 4. Import the other two games for the same date. Missing games remain blank in a private draft; existing games and unsaved edits to other games are retained. A single-game import never replaces the entire puzzle map.
-5. Validate and preview the complete slate, then **Publish / schedule slate**. All three games are required. A future slate releases at Eastern midnight; released puzzle content stays locked.
+5. Validate and preview the complete slate, then **Publish / schedule slate**. The original three games are required; new General drafts also include Grid-iron and the Drill, with Include checkboxes for a gradual rollout. A future slate releases at Eastern midnight; released puzzle content stays locked.
 6. Correct a creator name at any time using **Save creator names only**, or save the approved name in submission review. Linked public credits update without changing a live answer or clue. Original submitted names remain private in the review queue.
 
-The owner desk now exports **one selected game** at a time. Older full-slate JSON backups are rejected by the single-game importer rather than silently replacing three games. Existing Firestore slates, scores, local game keys, and player accounts remain compatible; no data migration is needed.
+The owner desk now exports **one selected game** at a time. Older full-slate JSON backups are rejected by the single-game importer rather than silently replacing three games. Existing General slates, scores, local game keys, and player accounts remain compatible; no data migration is needed. League exports identify their edition.
 
 See **[docs/COMMUNITY.md](docs/COMMUNITY.md)** for schemas, privacy rules, rate limits, and deployment details. Valid examples are in **[docs/examples](docs/examples)**; they reuse the existing sample puzzles and are not published automatically.
 
@@ -102,3 +102,9 @@ Browser/device QA and Firebase rules tests need the manual checks in **[docs/TES
 - `.github/workflows/pages.yml`: continuous checks and Pages deployment.
 
 References: [GitHub Pages](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages), [Firebase pricing plans](https://firebase.google.com/docs/projects/billing/firebase-pricing-plans), [Firestore quotas](https://firebase.google.com/docs/firestore/quotas), [Firebase web setup](https://firebase.google.com/docs/web/setup), [Firestore security conditions](https://firebase.google.com/docs/firestore/security/rules-conditions).
+
+## New games and league editions
+
+General now supports **The “Grid”-iron** (nine stats matched to a nine-name bank) and **The Two Minute Drill** (unlimited guesses in 120 seconds, with a signed-in daily leaderboard). Optional **NFL, MLB, NBA, and NCAAF** editions offer the original three games with independent content, progress, scores, and streaks. The Drill is last in the General lineup. The owner desk switches its entire working context by date and edition.
+
+Read [the upgrade guide](docs/UPGRADES.md) for the owner workflow, comma-separated answers and aliases, leaderboard privacy, compatibility, cost controls, and optional Firestore emulator tests. **Publish the updated Firestore rules before using league publishing or ranked Drills.** Existing published General games continue to work.

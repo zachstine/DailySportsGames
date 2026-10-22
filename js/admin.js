@@ -1,18 +1,21 @@
-import { dateKey, validDate, releaseTime, validatePuzzle, validateGame, buildCrossword, GAMES, GAME_FIELDS, GAME_NAMES } from "./core.js";
+import { dateKey, validDate, releaseTime, validatePuzzle, validateGame, buildCrossword, GAMES, GAME_FIELDS, GAME_NAMES, leagueOf, editionKey, gamesForLeague, LEAGUE_NAMES } from "./core.js";
 import { getDraft, saveDraft, writePreview, readLocal, writeLocal } from "./storage.js";
 import { configured, connectOwner, isOwner, loadOwnerPuzzle, saveOwnerPuzzle, upcomingPuzzles } from "./firebase.js";
 import { blankSlate, editorSlate, parseGameImport, exportGameFromSlate, mergeGameIntoSlate, gameImportMessage, validateCredits, samePuzzleData } from "./puzzles.js";
 import { importOwnerGame, saveOwnerCredits } from "./community.js";
-import { downloadGame } from "./game-editor.js";
+import { downloadGame, GameEditor } from "./game-editor.js";
 
 const $ = selector => document.querySelector(selector);
 const escape = value => String(value ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
 let connection, authorized = false, revision = 0, revisionDate = null, dirty = false, writing = false, live = false, localTimer, toastTimer;
+let currentLeague = "general", revisionLeague = "general";
+const extraEditors = { grid: new GameEditor($("#grid-editor"), "owner-grid"), drill: new GameEditor($("#drill-editor"), "owner-drill") };
 let current, sample, parsedImport = null, replaceImport = false;
 
 function rememberRevision() {
   writeLocal("owner-last-date", $("#puzzle-date").value);
-  if (revisionDate) writeLocal(`owner-revision:${revisionDate}`, { date: revisionDate, revision, live });
+  writeLocal("owner-last-league", currentLeague);
+  if (revisionDate) writeLocal(`owner-revision:${editionKey(revisionDate, revisionLeague)}`, { date: revisionDate, revision, live });
 }
 
 function message(value, warning = false) {
@@ -28,8 +31,15 @@ function toast(value) {
 function splitAliases(value) { return value.split(",").map(x => x.trim()).filter(Boolean); }
 
 function renderFields(puzzle) {
+  const included = Object.fromEntries(["grid", "drill"].map(game => [game, Boolean(puzzle[GAME_FIELDS[game]])]));
   puzzle = editorSlate(puzzle, puzzle.date);
   current = structuredClone(puzzle);
+  currentLeague = leagueOf(puzzle); $("#owner-league").value = currentLeague;
+  for (const el of document.querySelectorAll("[data-general-only]")) el.hidden = currentLeague !== "general";
+  for (const game of ["grid", "drill"]) { extraEditors[game].set(game, puzzle[GAME_FIELDS[game]]); $("#include-" + game).checked = included[game]; }
+  for (const option of $("#export-game").options) option.hidden = !gamesForLeague(currentLeague).includes(option.value);
+  if (!gamesForLeague(currentLeague).includes($("#export-game").value)) $("#export-game").value = "player";
+  $("#edition-help").textContent = `${LEAGUE_NAMES[currentLeague]} edition · Its own draft, schedule, scores, and streaks. Switch editions to prepare an optional league slate.`;
   $("#puzzle-date").value = puzzle.date; $("#puzzle-title").value = puzzle.title;
   writeLocal("owner-last-date", puzzle.date);
   $("#player-answer").value = puzzle.playerGuess.answer; $("#player-sport").value = puzzle.playerGuess.sport;
@@ -54,11 +64,12 @@ function collect() {
   });
   const credits = {};
   for (const game of GAMES) {
+    if (!gamesForLeague(currentLeague).includes(game) || ["grid", "drill"].includes(game) && !$(`#include-${game}`).checked) continue;
     const displayName = $(`#credit-${game}`).value.trim();
     if (displayName) credits[game] = { displayName, ...(current?.credits?.[game]?.submissionId ? { submissionId: current.credits[game].submissionId } : {}) };
   }
   return {
-    schemaVersion: 1, date: $("#puzzle-date").value, title: $("#puzzle-title").value.trim(),
+    schemaVersion: 1, ...(currentLeague !== "general" ? { league: currentLeague } : {}), ...(currentLeague === "general" ? Object.fromEntries(["grid", "drill"].filter(game => $("#include-" + game).checked).map(game => [GAME_FIELDS[game], extraEditors[game].read()])) : {}), date: $("#puzzle-date").value, title: $("#puzzle-title").value.trim(),
     playerGuess: { answer: $("#player-answer").value.trim(), sport: $("#player-sport").value.trim(), aliases: splitAliases($("#player-aliases").value), hints: Array.from({ length: 5 }, (_, i) => $(`#hint-${i}`).value.trim()) },
     statLadder: { questions }, crossSport: { size: +$("#cross-size").value, entries }, credits
   };
@@ -79,7 +90,7 @@ function setDocumentState(label) {
   $("#import-game").textContent = authorized ? "Import game to this date" : "Import into local draft";
   $("#save-credit-names").disabled = !authorized || writing || !revisionDate;
   for (const input of document.querySelectorAll('#editor input:not(#puzzle-date):not([id^="credit-"]), #editor textarea, #editor select, #editor [data-remove], #add-entry, #start-sample')) input.disabled = writing || live;
-  $("#puzzle-date").disabled = writing;
+  $("#puzzle-date").disabled = writing; $("#owner-league").disabled = writing;
   for (const game of GAMES) $(`#credit-${game}`).disabled = writing;
   const changedDate = revisionDate && $("#puzzle-date").value !== revisionDate;
   $("#date-warning").hidden = !changedDate;
@@ -92,11 +103,13 @@ function setDocumentState(label) {
 function validate(show = true) {
   const puzzle = collect();
   const errors = [...validatePuzzle(puzzle), ...validateCredits(puzzle.credits)];
-  if (show) $("#validation-result").innerHTML = errors.length ? `<ul class="validation-errors">${errors.map(error => `<li>${escape(error)}</li>`).join("")}</ul>` : '<p class="validation-success">✓ All three games passed validation. Preview the slate before publishing.</p>';
+  if (show) $("#validation-result").innerHTML = errors.length ? `<ul class="validation-errors">${errors.map(error => `<li>${escape(error)}</li>`).join("")}</ul>` : '<p class="validation-success">✓ This edition passed validation. Preview the slate before publishing.</p>';
   return { puzzle, errors };
 }
 
 function changed(event) {
+  if (writing) return;
+  if (["puzzle-date", "owner-league"].includes(event.target.id)) return;
   if (!event.target.closest("#editor") && !event.target.closest("#credit-panel")) return;
   dirty = true; setDocumentState();
   if (event.target.closest("#cross-fields") || event.target.id === "cross-size") paintGrid();
@@ -113,7 +126,7 @@ document.addEventListener("change", changed);
 async function refreshSchedule() {
   if (!authorized) { toast("Sign in with an owner account to view Firebase slates."); return; }
   try {
-    const list = await upcomingPuzzles(connection, dateKey());
+    const list = await upcomingPuzzles(connection, dateKey(), currentLeague);
     $("#schedule-list").innerHTML = list.length ? list.map(item => `<div class="schedule-item"><div><strong>${escape(item.date)}</strong><span>${item.published ? item.unlockAt.toMillis() <= Date.now() ? "Live · Locked" : "Scheduled" : "Private draft"}</span></div><button class="text-button" data-load="${escape(item.date)}">Open →</button></div>`).join("") : '<p class="fine-print">No upcoming slates. Save a draft or schedule your first date.</p>';
   } catch { toast("The Firebase schedule couldn't be loaded. Check your connection and owner rules."); }
 }
@@ -122,25 +135,27 @@ async function loadDate() {
   if (writing) return;
   const date = $("#puzzle-date").value;
   if (!date) { toast("Choose a release date first."); return; }
+  clearTimeout(localTimer); writing = true; setDocumentState();
   let cloud = null;
   try {
-    if (authorized) cloud = await loadOwnerPuzzle(connection, date);
-    revisionDate = authorized ? date : null; revision = cloud?.revision ?? 0;
+    if (authorized) cloud = await loadOwnerPuzzle(connection, date, currentLeague);
+    revisionDate = authorized ? date : null; revisionLeague = currentLeague; revision = cloud?.revision ?? 0;
     live = Boolean(cloud?.published && cloud.unlockAt.toMillis() <= Date.now());
-    const data = cloud ? { ...cloud.puzzle, credits: cloud.credits || {} } : getDraft(date) || blankSlate(date);
+    const data = cloud ? { ...cloud.puzzle, credits: cloud.credits || {} } : getDraft(date, currentLeague) || blankSlate(date, currentLeague);
     renderFields(data);
     setDocumentState(live ? "Live · Locked" : cloud ? cloud.published ? "Scheduled" : "Firebase draft" : "New date · Local draft");
     $("#validation-result").textContent = "";
     $("#save-status").textContent = cloud ? live ? "This slate is live. Answers and clues are locked. You can still correct creator names below." : "Loaded from Firebase. Import or edit the remaining games, then validate the complete slate before scheduling." : "New or local draft. Import games one at a time, or build the slate here.";
     rememberRevision();
-  } catch (error) { toast(error.message || "Couldn't load this date from Firebase."); }
+  } catch (error) { renderFields(getDraft(date, currentLeague) || blankSlate(date, currentLeague)); revisionDate = null; revision = 0; live = false; toast(error.message || "Couldn't load this date from Firebase."); }
+  finally { writing = false; setDocumentState(); }
 }
 
 async function publish(toPublic) {
   if (!authorized || writing) return;
   const { puzzle, errors } = validate();
   if (errors.length) { toast("Fix the validation errors before saving."); return; }
-  if (puzzle.date !== revisionDate) { toast("Use Load date first, then review this slate before saving to Firebase."); return; }
+  if (puzzle.date !== revisionDate || currentLeague !== revisionLeague) { toast("Use Load date first, then review this slate before saving to Firebase."); return; }
   writing = true; setDocumentState();
   try {
     revision = await saveOwnerPuzzle(connection, puzzle, toPublic, revision);
@@ -222,6 +237,14 @@ $("#sign-out").addEventListener("click", async () => {
   try { await connection.authModule.signOut(connection.auth); }
   catch { toast("Sign-out didn't finish. Please try again."); }
 });
+$("#owner-league").addEventListener("change", async event => {
+  if (writing) return;
+  clearTimeout(localTimer);
+  saveDraft(collect());
+  currentLeague = event.target.value; revisionDate = null; revision = 0; live = false;
+  await loadDate();
+});
+$("#puzzle-date").addEventListener("change", () => { clearTimeout(localTimer); if (current?.date) saveDraft({ ...collect(), date: current.date }); loadDate(); });
 $("#load-date").addEventListener("click", loadDate);
 $("#refresh-schedule").addEventListener("click", refreshSchedule);
 $("#validate").addEventListener("click", () => { validate(); paintGrid(); });
@@ -243,7 +266,9 @@ $("#preview").addEventListener("click", () => {
 });
 $("#start-sample").addEventListener("click", () => {
   const date = $("#puzzle-date").value || dateKey();
-  renderFields({ ...structuredClone(sample), date }); dirty = true; setDocumentState("Sample loaded · Not published");
+  const copy = { ...structuredClone(sample), date, ...(currentLeague !== "general" ? { league: currentLeague } : {}) };
+  if (currentLeague !== "general") { delete copy.gridIron; delete copy.twoMinuteDrill; toast("Sample layout loaded. Replace the sample content with questions for your selected league."); }
+  renderFields(copy); dirty = true; setDocumentState("Sample loaded · Not published");
   toast("Sample loaded into the editor. Nothing has been published.");
 });
 $("#add-entry").addEventListener("click", () => {
@@ -289,13 +314,13 @@ async function importSelectedGame(replace = false) {
     }
     writing = true; setDocumentState();
     if (!authorized) {
-      renderFields(mergeGameIntoSlate(before, envelope, date)); dirty = true; saveDraft(collect());
+      renderFields(mergeGameIntoSlate(before, envelope, date, currentLeague)); dirty = true; saveDraft(collect());
       $("#save-status").textContent = `Imported ${GAME_NAMES[envelope.game]} into your local draft. Other games were retained. Sign in and load the date before saving to Firebase.`;
       return;
     }
     const baseline = structuredClone(current);
-    const result = await importOwnerGame(connection, date, envelope, revision, replace);
-    const cloud = editorSlate(result.slate, date); const view = structuredClone(cloud);
+    const result = await importOwnerGame(connection, date, envelope, revision, replace, currentLeague);
+    const cloud = editorSlate(result.slate, date, currentLeague); const view = structuredClone(cloud);
     let retainedEdits = false;
     // Preserve unsaved edits to OTHER games in the working copy. They are
     // never smuggled into the field-specific Firebase import transaction.
@@ -309,7 +334,7 @@ async function importSelectedGame(replace = false) {
     if (before.title !== baseline.title) { view.title = before.title; retainedEdits = true; }
     revision = result.revision; revisionDate = date; live = false;
     renderFields(view); current = cloud; dirty = retainedEdits; saveDraft(view); rememberRevision();
-    $("#save-status").textContent = `Imported ${GAME_NAMES[envelope.game]} for ${date}. Other games and their credits were retained.${retainedEdits ? " Your other unsaved edits remain in the editor." : ""}${result.published ? " This future slate remains scheduled." : " Complete all three games, then publish or schedule the slate."}`;
+    $("#save-status").textContent = `Imported ${GAME_NAMES[envelope.game]} for ${date}. Other games and their credits were retained.${retainedEdits ? " Your other unsaved edits remain in the editor." : ""}${result.published ? " This future slate remains scheduled." : " Complete this edition, then publish or schedule the slate."}`;
     await refreshSchedule();
   } catch (error) {
     if (error.code === "import/overwrite-required") {
@@ -337,7 +362,7 @@ $("#save-credit-names").addEventListener("click", async () => {
   if ($("#puzzle-date").value !== revisionDate) { toast("Load this date before correcting its creator names."); return; }
   writing = true; setDocumentState();
   try {
-    const puzzle = collect(); revision = await saveOwnerCredits(connection, puzzle.date, puzzle.credits, revision);
+    const puzzle = collect(); revision = await saveOwnerCredits(connection, puzzle.date, puzzle.credits, revision, currentLeague);
     current.credits = structuredClone(puzzle.credits); rememberRevision(); saveDraft(puzzle);
     dirty = !samePuzzleData(collect(), current);
     $("#credit-status").textContent = "Creator names saved. Answers, clues, scores, and release settings are unchanged.";
@@ -356,12 +381,13 @@ try {
   if (validatePuzzle(sample).length) throw new Error();
     const lastDate = readLocal("owner-last-date");
     const chosenDate = validDate(lastDate) ? lastDate : dateKey();
-    const local = getDraft(chosenDate);
-    const metadata = readLocal(`owner-revision:${chosenDate}`);
+    currentLeague = readLocal("owner-last-league", "general"); if (!LEAGUE_NAMES[currentLeague]) currentLeague = "general"; revisionLeague = currentLeague;
+    const local = getDraft(chosenDate, currentLeague);
+    const metadata = readLocal(`owner-revision:${editionKey(chosenDate, currentLeague)}`);
     if (metadata && metadata.date === chosenDate && Number.isInteger(metadata.revision) && metadata.revision >= 0) {
       revisionDate = metadata.date; revision = metadata.revision; live = Boolean(metadata.live);
     }
-    renderFields(local && local.schemaVersion === 1 ? local : blankSlate(chosenDate));
+    renderFields(local && local.schemaVersion === 1 ? local : blankSlate(chosenDate, currentLeague));
 } catch {
   message("The sample file couldn't be loaded. Refresh this page or check data/practice.json in the repository.", true);
   $("#editor").classList.add("busy"); $(".admin-sidebar").classList.add("busy");

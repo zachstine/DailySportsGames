@@ -6,6 +6,7 @@ import { dateKey, validDate, shiftDate, releaseTime, normalize, matches, validat
   SolveTimer, formatDuration, gameScoreLabel } from "../js/core.js";
 
 const sample = JSON.parse(readFileSync(new URL("../data/practice.json", import.meta.url)));
+delete sample.gridIron; delete sample.twoMinuteDrill;
 const copy = () => structuredClone(sample);
 
 test("crossword timer excludes pauses, survives a saved resume, and freezes after completion", () => {
@@ -237,9 +238,9 @@ test("combined sharing keeps the individual emoji patterns, including unused clu
 test("full-slate sharing requires every game to be finished, in any playing order", () => {
   const states = Object.fromEntries(["player", "ladder", "cross"].map(game => [game, { ...newState(game, sample), done: true }]));
   for (const game of ["player", "ladder", "cross"]) {
-    assert.throws(() => shareSlate({ ...states, [game]: { ...states[game], done: false } }, sample), /Finish all three/);
+    assert.throws(() => shareSlate({ ...states, [game]: { ...states[game], done: false } }, sample), /Finish all games/);
   }
-  assert.throws(() => shareSlate({}, sample), /Finish all three/);
+  assert.throws(() => shareSlate({}, sample), /Finish all games/);
 });
 
 test("combined sharing supports restored totals and labels practice and previews without inventing a legacy time", () => {

@@ -8,7 +8,7 @@
   <title>Your account — Daily Sports Games</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="./css/styles.css">
-  <link rel="stylesheet" href="./css/account.css">
+  <link rel="stylesheet" href="./css/account.css"><link rel="stylesheet" href="./css/upgrades.css">
   <script type="module" src="./js/account.js"></script>
 </head>
 <body>
@@ -45,7 +45,7 @@
       </section>
       <section class="account-panel account-today" aria-labelledby="today-title">
         <div class="account-panel-top"><div><p class="eyebrow" id="account-date"></p><h2 id="today-title">Today's saved scores</h2></div><button id="refresh-account" class="text-button" disabled>Refresh</button></div>
-        <p class="fine-print">Your scores aren't public. Practice and owner previews stay separate.</p>
+        <div class="edition-picker"><label for="account-league">Edition</label><select id="account-league"><option value="general">General</option><option value="nfl">NFL</option><option value="mlb">MLB</option><option value="nba">NBA</option><option value="ncaaf">NCAAF</option></select></div><p class="fine-print">Saved daily totals are private. A ranked Drill shows your chosen nickname and answer count on its public leaderboard. Practice and previews stay separate.</p>
         <div id="account-results"><p class="fine-print">Loading your saved scores…</p></div>
         <a class="guest-link" href="./index.html">Back to the daily slate ↗</a>
       </section>

@@ -55,7 +55,7 @@ Use http://localhost:3000/admin.html, sign in, and confirm the **OWNER CONNECTED
 
 1. In the owner desk, choose today's Eastern date and click **Load date**. The sample is a starting point; replace the content for your actual daily puzzle.
 2. Enter all clues/questions and aliases. For crossword coordinates, the editor starts at row 1 / column 1; JSON uses zero-based coordinates.
-3. Click **Validate slate**, then **Preview all three games**. Play through the games. Return to the owner desk; the working copy was saved locally.
+3. Click **Validate slate**, then **Preview this edition**. Play through the games. Return to the owner desk; the working copy was saved locally.
 4. The desk remembers your date, working copy, and loaded revision when returning from preview. **Load date** intentionally reloads the cloud draft, so export a local working copy before replacing it. A stale revision is rejected if another editor has saved changes.
 5. Click **Save Firebase draft** to keep the slate private, or **Publish / schedule slate** to release it on its selected date.
 6. A puzzle for today releases immediately. A future one unlocks at midnight Eastern. Released, published slates lock against edits to preserve everyone's daily results. Always preview before publishing.
@@ -99,7 +99,7 @@ If you use a different GitHub account later, update the clone and setup links, h
 
 ## Costs and scope
 
-The target is **$0/month** for this friend demo: public GitHub Pages, Spark Firestore, Google/Email Authentication, and anonymous guest authentication. Firestore's free quotas include **50,000 document reads/day**, **20,000 writes/day**, and **1 GiB of storage** for the default free database. Watch actual usage in the Firebase Console. A page load reads one daily puzzle document shared by all three games and queries at most three saved daily totals, without a live listener. Registered profile checks, rule checks, and duplicate retries also use reads. Each completed game adds a result write; each new registered player adds one profile write. Owner operations read additional documents for authorization and scheduling.
+The target is **$0/month** for this friend demo: public GitHub Pages, Spark Firestore, Google/Email Authentication, and anonymous guest authentication. Firestore's free quotas include **50,000 document reads/day**, **20,000 writes/day**, and **1 GiB of storage** for the default free database. Watch actual usage in the Firebase Console. A page load reads an edition directory and one daily puzzle document shared by that edition’s games and queries at most 25 saved daily totals across its supported editions, without a live listener. Registered profile checks, rule checks, and duplicate retries also use reads. Each completed game adds a result write; each new registered player adds one profile write. Owner operations read additional documents for authorization and scheduling.
 
 Keep the project on Spark for the demo. Quota exhaustion can stop Firebase operations instead of increasing a bill. Cloud Functions, a Cloud Storage bucket, paid sports APIs, syncing unfinished games, and a trusted leaderboard are outside this version. JSON “upload” means reading a local file in the browser and writing a validated Firestore document; it doesn't use Cloud Storage.
 
@@ -115,3 +115,6 @@ Publish the updated `firestore.rules` from this repository before enabling the c
 Review loads 50 suggestions at a time ordered by creation time and applies its game/status filters to loaded suggestions. **Load older submissions** includes earlier pages. This uses the automatic single-field index; no composite index setup is required.
 
 See [COMMUNITY.md](COMMUNITY.md) for the one-game JSON contract and the review → copy → import → schedule workflow.
+
+
+For Grid-iron, the Two Minute Drill, league editions, and the additional rules, follow [UPGRADES.md](UPGRADES.md). Ranked Drills add a clock write, one write per unique accepted answer, and a final public score write. The leaderboard has no live polling.

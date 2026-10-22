@@ -1,5 +1,5 @@
 import { firebaseConfig } from "../firebase-config.js";
-import { releaseTime, validatePuzzle, validDate, validDailyResult } from "./core.js";
+import { releaseTime, validatePuzzle, validDate, validDailyResult, leagueOf, LEAGUES, puzzlePath } from "./core.js";
 import { persistOwnerSlate } from "./community.js";
 
 export const configured = Boolean(firebaseConfig.apiKey && firebaseConfig.projectId && firebaseConfig.appId);
@@ -16,14 +16,14 @@ export async function connect() {
   return connection;
 }
 
-export async function getDailyPuzzle(date) {
+export async function getDailyPuzzle(date, league = "general") {
   const { db, store } = await connect();
-  const snapshot = await store.getDocFromServer(store.doc(db, "dailyPuzzles", date));
+  const snapshot = await store.getDocFromServer(store.doc(db, ...puzzlePath(date, league)));
   if (!snapshot.exists()) return null;
   const data = snapshot.data();
   if (!data.published || data.unlockAt.toMillis() > Date.now()) return null;
   const errors = validatePuzzle(data.puzzle);
-  if (errors.length || data.puzzle.date !== date) throw new Error("Today's puzzle needs an owner correction. Please try again later.");
+  if (errors.length || data.puzzle.date !== date || leagueOf(data.puzzle) !== league) throw new Error("Today's puzzle needs an owner correction. Please try again later.");
   return { ...data.puzzle, credits: data.credits || {} };
 }
 
@@ -61,8 +61,8 @@ export async function writeDailyResult(connection, result, expectedUid) {
   const playerId = auth.currentUser?.uid;
   if (!playerId) throw new Error("A player session is required to record a result.");
   if (expectedUid && expectedUid !== playerId) throw new Error("The player account changed. This result stays with its original player.");
-  const reference = store.doc(db, "results", `${playerId}_${date}_${game}`);
-  const data = { playerId, date, game, score, won, checks, reveals };
+  const reference = store.doc(db, "results", `${playerId}_${date}_${leagueOf(result) === "general" ? "" : `${result.league}_`}${game}`);
+  const data = { playerId, date, game, score, won, checks, reveals, ...(leagueOf(result) !== "general" ? { league: result.league } : {}) };
   if (result.elapsedMs !== undefined) data.elapsedMs = result.elapsedMs;
   try {
     await store.setDoc(reference, { ...data, completedAt: store.serverTimestamp() });
@@ -75,19 +75,19 @@ export async function writeDailyResult(connection, result, expectedUid) {
   }
 }
 
-export async function playerResultsForDate(connection, date) {
+export async function playerResultsForDate(connection, date, league = "general") {
   const { db, store, auth } = connection;
   const uid = auth.currentUser?.uid;
   if (!uid || !validDate(date)) return [];
   // Equality-only query uses Firestore's built-in index merging; no paid
   // service or extra composite index is needed for the three daily totals.
-  const query = store.query(store.collection(db, "results"), store.where("playerId", "==", uid), store.where("date", "==", date), store.limit(3));
+  const query = store.query(store.collection(db, "results"), store.where("playerId", "==", uid), store.where("date", "==", date), store.limit(25));
   const snapshot = await store.getDocsFromServer(query);
   if (auth.currentUser?.uid !== uid) throw new Error("The player account changed while loading results.");
   return snapshot.docs.map(doc => {
-    const { game, score, won, checks, reveals, elapsedMs } = doc.data();
-    return { game, score, won, checks, reveals, ...(elapsedMs !== undefined ? { elapsedMs } : {}), date, mode: "daily", done: true };
-  }).filter(validDailyResult);
+    const { game, score, won, checks, reveals, elapsedMs, league: storedLeague } = doc.data();
+    return { game, score, won, checks, reveals, ...(storedLeague ? { league: storedLeague } : {}), ...(elapsedMs !== undefined ? { elapsedMs } : {}), date, mode: "daily", done: true };
+  }).filter(r => validDailyResult(r) && leagueOf(r) === league);
 }
 
 export async function ensurePlayerProfile(connection) {
@@ -151,9 +151,9 @@ export async function isOwner(connection, uid) {
   return snapshot.exists() && snapshot.data().enabled === true;
 }
 
-export async function loadOwnerPuzzle(connection, date) {
+export async function loadOwnerPuzzle(connection, date, league = "general") {
   const { db, store } = connection;
-  const snapshot = await store.getDocFromServer(store.doc(db, "dailyPuzzles", date));
+  const snapshot = await store.getDocFromServer(store.doc(db, ...puzzlePath(date, league)));
   return snapshot.exists() ? snapshot.data() : null;
 }
 
@@ -161,9 +161,18 @@ export async function saveOwnerPuzzle(connection, puzzle, publish, expectedRevis
   return persistOwnerSlate(connection, puzzle, publish, expectedRevision);
 }
 
-export async function upcomingPuzzles(connection, today) {
+export async function upcomingPuzzles(connection, today, league = "general") {
   const { db, store } = connection;
-  const query = store.query(store.collection(db, "dailyPuzzles"), store.orderBy(store.documentId()), store.startAt(today), store.limit(14));
+  const query = store.query(store.collection(db, puzzlePath(today, league)[0]), store.orderBy(store.documentId()), store.startAt(today), store.limit(14));
   const result = await store.getDocsFromServer(query);
   return result.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+}
+
+export async function publishedEditions(date) {
+  const { db, store } = await connect();
+  try {
+    const snapshot = await store.getDocFromServer(store.doc(db, "dailyEditions", date));
+    if (snapshot.exists() && snapshot.data().unlockAt.toMillis() <= Date.now()) return LEAGUES.filter(league => snapshot.data().published?.[league]);
+  } catch { /* Legacy General slates have no directory entry. */ }
+  return ["general"];
 }

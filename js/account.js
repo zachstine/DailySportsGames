@@ -1,9 +1,14 @@
-import { dateKey, GAMES, GAME_NAMES, gameScoreLabel } from "./core.js";
+import { dateKey, GAME_NAMES, gameScoreLabel, gamesForLeague, leagueOf, LEAGUES } from "./core.js";
 import { setPlayerScope, importRecordedResults, allResults, readLocal, writeLocal } from "./storage.js";
 import { configured, connectPlayer, ensurePlayerProfile, playerResultsForDate,
   signInPlayerWithEmail, signInPlayerWithGoogle, signOutPlayer } from "./firebase.js";
 
 const $ = selector => document.querySelector(selector);
+let selectedLeague = new URLSearchParams(location.search).get("league") || "general";
+if (!LEAGUES.includes(selectedLeague)) selectedLeague = "general";
+$("#account-league").value = selectedLeague;
+function updateEditionLinks() { for (const link of document.querySelectorAll('a[href^="./index.html"]')) link.href = `./index.html${selectedLeague === "general" ? "" : `?league=${selectedLeague}`}`; }
+updateEditionLinks();
 let connection, creating = false, working = false, refreshVersion = 0;
 let accountRevision = readLocal("account-revision");
 const identity = user => user ? `${user.uid}:${user.isAnonymous}` : "signed-out";
@@ -40,8 +45,8 @@ function setMode(create) {
 
 function showResults(records) {
   $("#account-date").textContent = dateKey();
-  $("#account-results").innerHTML = GAMES.map(game => {
-    const result = records.find(r => r.date === dateKey() && r.game === game && r.done);
+  $("#account-results").innerHTML = gamesForLeague(selectedLeague).map(game => {
+    const result = records.find(r => r.date === dateKey() && r.game === game && r.done && leagueOf(r) === selectedLeague);
     const score = result ? gameScoreLabel(game, result) : "Not played";
     const assistance = result && game === "cross" ? `<small>${result.checks} checks · ${result.reveals} reveals</small>` : "";
     return `<div class="saved-score"><div><strong>${GAME_NAMES[game]}</strong>${assistance}</div><span>${score}</span></div>`;
@@ -65,7 +70,7 @@ async function refreshAccount() {
   $("#account-badge").textContent = user.isAnonymous ? "GUEST" : "PLAYER ACCOUNT";
   $("#player-identity").textContent = user.email || user.displayName || "Signed in";
   message(user.isAnonymous ? "You're playing as a guest. Sign in whenever you're ready." : "You're signed in. Your completed daily scores are saved to your account.");
-  const checks = await Promise.allSettled([ensurePlayerProfile(connection), playerResultsForDate(connection, dateKey())]);
+  const checks = await Promise.allSettled([ensurePlayerProfile(connection), playerResultsForDate(connection, dateKey(), selectedLeague)]);
   if (version !== refreshVersion || connection.auth.currentUser?.uid !== user.uid) return;
   if (checks[1].status === "fulfilled") { importRecordedResults(checks[1].value); showResults(checks[1].value); }
   else { showResults(allResults()); message("Your session is ready, but saved scores couldn't be loaded. You can keep playing and try Refresh later.", true); }
@@ -123,6 +128,12 @@ $("#player-email-form").addEventListener("submit", event => {
 });
 $("#player-google").addEventListener("click", () => accountAction(() => signInPlayerWithGoogle(connection)));
 $("#player-sign-out").addEventListener("click", () => accountAction(() => signOutPlayer(connection)));
+$("#account-league").addEventListener("change", async event => {
+  selectedLeague = event.target.value;
+  const url = new URL(location.href); if (selectedLeague === "general") url.searchParams.delete("league"); else url.searchParams.set("league", selectedLeague); history.replaceState(null,"",url);
+  updateEditionLinks();
+  await refreshAccount();
+});
 $("#refresh-account").addEventListener("click", refreshAccount);
 $("#password-reset").addEventListener("click", async () => {
   const email = $("#player-email");

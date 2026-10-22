@@ -1,7 +1,18 @@
 export const TIME_ZONE = "America/New_York";
-export const GAMES = ["player", "ladder", "cross"];
-export const GAME_NAMES = { player: "Player Guess", ladder: "Stat Ladder", cross: "CrossSport" };
-export const GAME_FIELDS = { player: "playerGuess", ladder: "statLadder", cross: "crossSport" };
+export const BASE_GAMES = ["player", "ladder", "cross"];
+export const GAMES = [...BASE_GAMES, "grid", "drill"];
+export const GAME_NAMES = { player: "Player Guess", ladder: "Stat Ladder", cross: "CrossSport", grid: 'The “Grid”-iron', drill: "The Two Minute Drill" };
+export const GAME_FIELDS = { player: "playerGuess", ladder: "statLadder", cross: "crossSport", grid: "gridIron", drill: "twoMinuteDrill" };
+export const LEAGUES = ["general", "nfl", "mlb", "nba", "ncaaf"];
+export const LEAGUE_NAMES = { general: "General", nfl: "NFL", mlb: "MLB", nba: "NBA", ncaaf: "NCAAF" };
+export const DRILL_MS = 120000;
+export const leagueOf = value => value?.league || "general";
+export const editionKey = (date, league = "general") => league === "general" ? date : `${league}:${date}`;
+export const puzzlePath = (date, league = "general") => league === "general" ? ["dailyPuzzles", date] : [`leaguePuzzles/${league}/days`, date];
+export const gamesForLeague = league => league === "general" ? [...GAMES] : [...BASE_GAMES];
+// Released three-game slates stay playable without inventing new content.
+export const gamesForPuzzle = puzzle => gamesForLeague(leagueOf(puzzle)).filter(game => BASE_GAMES.includes(game) || puzzle?.[GAME_FIELDS[game]]);
+export const resultLimit = game => ({ player: 5, ladder: 15, cross: 1, grid: 9, drill: 500 })[game];
 
 export function validElapsedMs(value) {
   return Number.isSafeInteger(value) && value >= 0;
@@ -37,6 +48,8 @@ export class SolveTimer {
 export function gameScoreLabel(game, result) {
   if (!result) return "—";
   if (game === "cross") return result.done ? validElapsedMs(result.elapsedMs) ? formatDuration(result.elapsedMs) : "Complete" : "In progress";
+  if (game === "grid") return `${result.score}/9`;
+  if (game === "drill") return `${result.score} answer${result.score === 1 ? "" : "s"}`;
   return `${result.score}/${game === "ladder" ? 15 : 5}`;
 }
 
@@ -176,10 +189,10 @@ function answerErrors(question, prefix) {
 }
 
 export function validateGame(game, data) {
-  if (!GAMES.includes(game)) return ["Choose Player Guess, Stat Ladder, or CrossSport."];
+  if (!GAMES.includes(game)) return ["Choose Player Guess, Stat Ladder, CrossSport, Grid-iron, or Two Minute Drill."];
   if (!data || typeof data !== "object" || Array.isArray(data)) return [`${GAME_NAMES[game]} needs a puzzle object.`];
   const errors = [];
-  const fields = { player: ["answer", "sport", "aliases", "hints"], ladder: ["questions"], cross: ["size", "entries"] };
+  const fields = { player: ["answer", "sport", "aliases", "hints"], ladder: ["questions"], cross: ["size", "entries"], grid: ["names", "cells"], drill: ["question", "answers"] };
   if (Object.keys(data).some(key => !fields[game].includes(key))) errors.push(`${GAME_NAMES[game]} contains an unexpected field.`);
   if (game === "player") {
     errors.push(...answerErrors(data, "Player Guess"));
@@ -198,6 +211,22 @@ export function validateGame(game, data) {
     } catch { errors.push(`Stat Ladder question ${i + 1}: add an https source URL to verify the statistic.`); }
   }
   if (game === "cross") errors.push(...buildCrossword(data).errors);
+  if (game === "grid") {
+    if (!Array.isArray(data.names) || data.names.length !== 9 || data.names.some(x => !text(x, 120) || !normalize(x)) || new Set(data.names.map(normalize)).size !== 9) errors.push('Grid-iron needs exactly nine distinct player or coach names.');
+    if (!Array.isArray(data.cells) || data.cells.length !== 9 || data.cells.some(x => !text(x?.clue, 500) || (!Array.isArray(data.names) || !data.names.includes(x?.answer))) || new Set(data.cells?.map(x => x?.answer)).size !== 9) errors.push('Grid-iron needs nine clues, each assigned to a different name in the bank.');
+  }
+  if (game === "drill") {
+    if (!text(data.question, 500)) errors.push("Two Minute Drill needs a question (maximum 500 characters).");
+    if (!Array.isArray(data.answers) || !data.answers.length || data.answers.length > 500) errors.push("Two Minute Drill needs 1–500 accepted answers.");
+    else {
+      const seen = new Set();
+      for (const [i, answer] of data.answers.entries()) {
+        errors.push(...answerErrors(answer, `Drill answer ${i + 1}`));
+        const keys = [answer?.answer, ...(Array.isArray(answer?.aliases) ? answer.aliases : [])].map(normalize);
+        for (const key of new Set(keys)) { if (seen.has(key)) errors.push(`Drill answer ${i + 1}: this name or alias already belongs to another answer.`); seen.add(key); }
+      }
+    }
+  }
   if (JSON.stringify(data).length > 50000) errors.push("A single game must be smaller than 50 KB.");
   return errors;
 }
@@ -208,8 +237,10 @@ export function validatePuzzle(puzzle) {
   if (puzzle.schemaVersion !== 1) errors.push("schemaVersion must be 1.");
   if (!validDate(puzzle.date)) errors.push("Choose a valid release date (YYYY-MM-DD). ");
   if (!text(puzzle.title, 120)) errors.push("Add a daily title (maximum 120 characters). ");
-  for (const game of GAMES) errors.push(...validateGame(game, puzzle[GAME_FIELDS[game]]));
-  if (JSON.stringify(puzzle).length > 60000) errors.push("The puzzle file must be smaller than 60 KB.");
+  if (!LEAGUES.includes(leagueOf(puzzle))) errors.push("Choose General, NFL, MLB, NBA, or NCAAF.");
+  if (leagueOf(puzzle) !== "general" && (puzzle.gridIron || puzzle.twoMinuteDrill)) errors.push("League editions contain Player Guess, Stat Ladder, and CrossSport only.");
+  for (const game of gamesForPuzzle(puzzle)) errors.push(...validateGame(game, puzzle[GAME_FIELDS[game]]));
+  if (JSON.stringify(puzzle).length > 150000) errors.push("The puzzle file must be smaller than 150 KB.");
   return errors;
 }
 
@@ -217,25 +248,28 @@ export function newState(game, puzzle) {
   if (game === "player") return { attempts: [], done: false, won: false, score: 0 };
   if (game === "ladder") return { attempts: [], done: false, won: false, score: 0 };
   if (game === "cross") return { letters: Array(puzzle.crossSport.size ** 2).fill(""), checks: 0, reveals: [], elapsedMs: 0, done: false, won: false, score: 0 };
+  if (game === "grid") return { placements: Array(9).fill(null), mistakes: Array(9).fill(0), selected: null, done: false, won: false, score: 0 };
+  if (game === "drill") return { found: [], startedAt: null, deadline: null, ranked: false, misses: 0, done: false, won: false, score: 0 };
   throw new Error("Unknown game.");
 }
 
 export function validDailyResult(result) {
   if (!result || !GAMES.includes(result.game) || !validDate(result.date)) return false;
   const { game, score, won, checks, reveals } = result;
-  const limit = game === "ladder" ? 15 : game === "player" ? 5 : 1;
+  const limit = resultLimit(game);
   return Number.isInteger(score) && score >= 0 && score <= limit && won === (score > 0) &&
+    LEAGUES.includes(leagueOf(result)) && (leagueOf(result) === "general" || BASE_GAMES.includes(game)) &&
     Number.isInteger(checks) && checks >= 0 && checks <= 1000000 &&
     Number.isInteger(reveals) && reveals >= 0 && reveals <= 121 &&
-    (game === "cross" ? score === 1 : checks === 0 && reveals === 0) &&
+    (game === "cross" ? score === 1 : game === "grid" ? score === 9 && reveals === 0 : checks === 0 && reveals === 0) &&
     (result.elapsedMs === undefined || game === "cross" && validElapsedMs(result.elapsedMs));
 }
 
 export function stateFromRecordedResult(result, puzzle) {
-  if (!validDailyResult(result) || result.date !== puzzle.date) throw new Error("Invalid recorded result.");
+  if (!validDailyResult(result) || result.date !== puzzle.date || leagueOf(result) !== leagueOf(puzzle) || !gamesForPuzzle(puzzle).includes(result.game)) throw new Error("Invalid recorded result.");
   // A saved total does not contain the original guesses or revealed squares.
   return { ...newState(result.game, puzzle), done: true, won: result.won, score: result.score,
-    recordedOnly: true, ...(result.game === "cross" ? { checks: result.checks, revealCount: result.reveals, elapsedMs: result.elapsedMs ?? null } : {}) };
+    recordedOnly: true, ...(result.game === "cross" ? { checks: result.checks, revealCount: result.reveals, elapsedMs: result.elapsedMs ?? null } : {}), ...(result.game === "grid" ? { totalMistakes: result.checks } : {}) };
 }
 
 export function guessPlayer(state, puzzle, guess, skip = false) {
@@ -277,7 +311,8 @@ export function streakStats(records, today = dateKey()) {
 }
 
 function shareEdition(puzzle, mode) {
-  return mode === "daily" ? puzzle.date : mode === "preview" ? "Owner preview" : "Practice";
+  const label = mode === "daily" ? puzzle.date : mode === "preview" ? "Owner preview" : "Practice";
+  return leagueOf(puzzle) === "general" ? label : `${label} · ${LEAGUE_NAMES[leagueOf(puzzle)]}`;
 }
 
 function gameShareLines(game, state) {
@@ -288,6 +323,12 @@ function gameShareLines(game, state) {
   } else if (game === "ladder") {
     score = `${state.score}/15`;
     blocks = state.recordedOnly ? "Saved result" : state.attempts.map(a => a.correct ? "🟩" : a.skipped ? "⬜" : "🟥").join("");
+  } else if (game === "grid") {
+    score = `${state.score}/9`;
+    blocks = state.recordedOnly ? `Saved result · ${state.totalMistakes} mistakes` : Array.from({ length: 3 }, (_, row) => state.placements.slice(row * 3, row * 3 + 3).map((name, i) => name === null ? "⬛" : state.mistakes[row * 3 + i] ? "🟨" : "🟩").join("")).join("\n");
+  } else if (game === "drill") {
+    score = `${state.score} answer${state.score === 1 ? "" : "s"}`;
+    blocks = `⏱️ 2:00 · ${state.score ? "🟩" : "🟥"}${state.ranked ? " Ranked" : ""}`;
   } else {
     score = state.done ? "Complete" : "In progress";
     if (state.done && validElapsedMs(state.elapsedMs)) score += ` · ${formatDuration(state.elapsedMs)}`;
@@ -298,10 +339,11 @@ function gameShareLines(game, state) {
 }
 
 export function shareSlate(states, puzzle, mode = "daily", url = "") {
-  if (!GAMES.every(game => states[game]?.done)) throw new Error("Finish all three games to share your full slate.");
+  const games = gamesForPuzzle(puzzle);
+  if (!games.every(game => states[game]?.done)) throw new Error("Finish all games to share your full slate.");
   return [
     `Daily Sports Games · ${shareEdition(puzzle, mode)}`,
-    ...GAMES.flatMap(game => gameShareLines(game, states[game])),
+    ...games.flatMap(game => gameShareLines(game, states[game])),
     url
   ].filter(Boolean).join("\n");
 }
