@@ -315,7 +315,7 @@ a:hover {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin: 0 0 21px;
+  margin: 0 0 6px;
 }
 .section-heading h2 {
   font-family: var(--display);
@@ -1216,7 +1216,7 @@ select {
   }
   .section-heading {
     gap: 12px;
-    margin-bottom: 16px;
+    margin-bottom: 4px;
   }
   .section-heading h2 {
     font-size: 22px;
