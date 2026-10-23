@@ -63,6 +63,7 @@ import {
 import { validCreatorName } from "./puzzles.js";
 import { withTimeout } from "./async.js";
 import { firstAcross, crossSelection } from "./crossword.js";
+import { icon } from "./icons.js";
 
 const $ = (selector) => document.querySelector(selector);
 const escape = (value) =>
@@ -267,7 +268,7 @@ async function loadSlate(forcePractice = false) {
         const retry = document.createElement("button");
         retry.className = "text-button";
         retry.dataset.action = "retry";
-        retry.textContent = "Check for today's games →";
+        retry.innerHTML = `Check for today's games ${icon("arrow-right")}`;
         $("#site-status").append(" ", retry);
       } else showNotice("");
     }
@@ -408,9 +409,8 @@ function renderDashboard() {
     `./account.html${currentLeague() === "general" ? "" : `?league=${currentLeague()}`}`;
   const heroGameCount = $("#hero-game-count");
   if (heroGameCount) {
-     heroGameCount.textContent =
-       `${games.length} games to put your sports brain to work.`;
-   }
+    heroGameCount.textContent = `${games.length} games to put your sports brain to work.`;
+  }
   for (const game of GAMES) {
     const card = $(`[href="#${game}"].game-card`);
     if (card) {
@@ -463,11 +463,12 @@ function route() {
   $("#game-credit").hidden = !creditName(game);
   const back = $("#game-back-link");
   back.href = previewContext ? previewContext.href : "#";
-  back.textContent = previewContext
+  const backLabel = previewContext
     ? previewContext.href === "./create/"
-      ? "← Back to puzzle creator"
-      : "← Back to submission review"
-    : "← All games";
+      ? "Back to puzzle creator"
+      : "Back to submission review"
+    : "All games";
+  back.innerHTML = `${icon("arrow-left")} ${backLabel}`;
   const editionLabel =
     mode === "daily"
       ? puzzle.date
@@ -568,13 +569,13 @@ function answerForm(label, placeholder) {
           required
           placeholder="${placeholder}"
         /><button class="button" type="submit">
-          Lock it in <span aria-hidden="true">↗</span>
+          Lock it in <span aria-hidden="true">${icon("arrow-up-right")}</span>
         </button>
       </div>
     </form>
     <div class="skip-row">
       <button class="text-button" data-action="skip">
-        Skip this ${location.hash === "#player" ? "clue" : "question"} →</button
+        Skip this ${location.hash === "#player" ? "clue" : "question"} ${icon("arrow-right")}</button
       ><span>One guess. Make it count.</span>
     </div>`;
 }
@@ -593,7 +594,7 @@ function resultPanel(game, heading, description) {
           class="button secondary"
           href="#${nextGame}"
           aria-label="Next game: ${GAME_NAMES[nextGame]}"
-          >Next game →</a
+          >Next game ${icon("arrow-right")}</a
         >`
       : /* HTML */ `<a class="button secondary" href="#">View today's results</a>`;
   const sync =
@@ -633,7 +634,9 @@ function resultPanel(game, heading, description) {
         </div>`;
   const allDone = !previewContext && games.every((game) => states[game].done);
   const shareAll = allDone
-    ? /* HTML */ `<button class="button" data-action="share-all">Share all scores ↗</button>`
+    ? /* HTML */ `<button class="button" data-action="share-all">
+        Share all scores ${icon("arrow-up-right")}
+      </button>`
     : "";
   const shareSingle = previewContext
     ? ""
@@ -642,7 +645,7 @@ function resultPanel(game, heading, description) {
         data-action="share"
         data-game="${game}"
       >
-        Share Score ↗
+        Share Score ${icon("arrow-up-right")}
       </button>`;
   const bigThree =
     game === "cross" && !previewContext
@@ -651,7 +654,7 @@ function resultPanel(game, heading, description) {
           data-action="share-big-three"
           ${BASE_GAMES.every((game) => states[game]?.done) ? "" : "disabled"}
         >
-          Share The Big Three ↗
+          Share The Big Three ${icon("arrow-up-right")}
         </button>`
       : "";
   const bigThreeHelp =
@@ -808,7 +811,7 @@ function renderLadder() {
                   <p>${escape(q.question)}</p>
                   <p>Your answer: ${escape(state.attempts[i].guess)}</p>
                   <a href="${escape(q.source)}" target="_blank" rel="noopener noreferrer"
-                    >Check the source ↗</a
+                    >Check the source ${icon("arrow-up-right")}</a
                   >
                 </details>`,
             )
@@ -915,7 +918,7 @@ function leaderboardPanel() {
         data-action="refresh-leaderboard"
         ${leaderboardLoading ? "disabled" : ""}
       >
-        ${leaderboardLoading ? "Loading…" : "Refresh ↻"}
+        ${leaderboardLoading ? "Loading…" : `Refresh ${icon("refresh")}`}
       </button>
     </div>
     <p class="fine-print">Top 25 · Unique answers · Ties share a place · Public nicknames only</p>
@@ -1028,7 +1031,9 @@ function renderDrill() {
                 data-action="start-drill-ranked"
                 ${drillRanking ? "disabled" : ""}
               >
-                ${drillRanking ? "Connecting your clock…" : "Start ranked run →"}</button
+                ${drillRanking
+                  ? "Connecting your clock…"
+                  : `Start ranked run ${icon("arrow-right")}`}</button
               ><button
                 class="button secondary"
                 data-action="start-drill"
@@ -1038,8 +1043,9 @@ function renderDrill() {
               </button>
             </div>`
         : /* HTML */ `<div class="button-row">
-            <button class="button" data-action="start-drill">Start 2:00 clock →</button>${mode ===
-            "daily"
+            <button class="button" data-action="start-drill">
+              Start 2:00 clock ${icon("arrow-right")}</button
+            >${mode === "daily"
               ? '<a class="button secondary" href="./account.html">Sign in to rank</a>'
               : ""}
           </div>`}
@@ -1066,7 +1072,7 @@ function renderDrill() {
             placeholder="Keep them coming…"
             ${drillSubmitting || !remaining ? "disabled" : ""}
           /><button class="button" type="submit" ${drillSubmitting || !remaining ? "disabled" : ""}>
-            ${drillSubmitting ? "Checking…" : "Submit ↗"}
+            ${drillSubmitting ? "Checking…" : `Submit ${icon("arrow-up-right")}`}
           </button>
         </div>
       </form>

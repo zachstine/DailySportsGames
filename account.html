@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="./css/account.css" />
     <link rel="stylesheet" href="./css/upgrades.css" />
     <link rel="stylesheet" href="./css/appearance.css" />
+    <link rel="stylesheet" href="./css/icons.css" />
     <script type="module" src="./js/appearance.js"></script>
     <script type="module" src="./js/account.js"></script>
   </head>
@@ -26,7 +27,24 @@
           ></a
         >
         <nav aria-label="Account navigation">
-          <a href="./index.html">← Back to games</a>
+          <a href="./index.html"
+            ><svg
+              class="ui-icon"
+              viewBox="0 0 24 24"
+              width="24"
+              height="24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path d="M20 12H4m6-6-6 6 6 6" />
+            </svg>
+            Back to games</a
+          >
           <button
             class="theme-toggle"
             type="button"
@@ -34,7 +52,21 @@
             aria-label="Switch to dark mode"
             aria-pressed="false"
           >
-            <span data-theme-symbol aria-hidden="true">☾</span
+            <span data-theme-symbol aria-hidden="true"
+              ><svg
+                class="ui-icon"
+                viewBox="0 0 24 24"
+                width="24"
+                height="24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="M20.8 14.3A9 9 0 0 1 9.7 3.2a9 9 0 1 0 11.1 11.1Z" /></svg></span
             ><span data-theme-label>Dark mode</span>
           </button>
         </nav>
@@ -99,7 +131,23 @@
               </form>
               <button id="password-reset" class="text-button" disabled>Forgot password?</button>
             </div>
-            <a class="guest-link" href="./index.html">Keep playing as a guest →</a>
+            <a class="guest-link" href="./index.html"
+              >Keep playing as a guest
+              <svg
+                class="ui-icon"
+                viewBox="0 0 24 24"
+                width="24"
+                height="24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="M4 12h16m-6-6 6 6-6 6" /></svg
+            ></a>
           </div>
           <div id="signed-in-options" hidden>
             <p id="player-identity" class="player-identity"></p>
@@ -108,7 +156,22 @@
               unfinished puzzles stay on this device.
             </p>
             <div class="button-row">
-              <a class="button" href="./index.html">Play today's games →</a
+              <a class="button" href="./index.html"
+                >Play today's games
+                <svg
+                  class="ui-icon"
+                  viewBox="0 0 24 24"
+                  width="24"
+                  height="24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path d="M4 12h16m-6-6 6 6-6 6" /></svg></a
               ><button id="player-sign-out" class="button secondary">Sign out</button>
             </div>
             <p class="fine-print account-signout-note">
@@ -139,13 +202,45 @@
             count on its public leaderboard. Practice and previews stay separate.
           </p>
           <div id="account-results"><p class="fine-print">Loading your saved scores…</p></div>
-          <a class="guest-link" href="./index.html">Back to the daily slate ↗</a>
+          <a class="guest-link" href="./index.html"
+            >Back to the daily slate
+            <svg
+              class="ui-icon"
+              viewBox="0 0 24 24"
+              width="24"
+              height="24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path d="M7 17 17 7M7 7h10v10" /></svg
+          ></a>
         </section>
       </div>
     </main>
     <footer class="site-footer shell">
       <span class="footer-brand">A fresh slate. Every day.</span
-      ><a href="./admin.html">Owner desk ↗</a>
+      ><a href="./admin.html"
+        >Owner desk
+        <svg
+          class="ui-icon"
+          viewBox="0 0 24 24"
+          width="24"
+          height="24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path d="M7 17 17 7M7 7h10v10" /></svg
+      ></a>
     </footer>
   </body>
 </html>

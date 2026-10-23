@@ -1,6 +1,7 @@
 import { buildCrossword, GAME_NAMES, validateGame } from "./core.js";
 import { parseDrillAnswers, formatDrillAnswers } from "./new-games.js";
 import { blankGame } from "./puzzles.js";
+import { icon } from "./icons.js";
 
 export const escape = (value) =>
   String(value ?? "").replace(
@@ -104,7 +105,7 @@ ${escape(value)}</textarea
         aria-label="Move ${noun} ${i + 1} up"
         ${i === 0 ? "disabled" : ""}
       >
-        ↑ Move up</button
+        ${icon("arrow-up")} Move up</button
       ><button
         type="button"
         class="text-button"
@@ -113,7 +114,7 @@ ${escape(value)}</textarea
         aria-label="Move ${noun} ${i + 1} down"
         ${i === length - 1 ? "disabled" : ""}
       >
-        ↓ Move down</button
+        ${icon("arrow-down")} Move down</button
       >${remove
         ? /* HTML */ `<button
             type="button"

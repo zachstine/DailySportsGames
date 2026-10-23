@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="./css/community.css" />
     <link rel="stylesheet" href="./css/upgrades.css" />
     <link rel="stylesheet" href="./css/appearance.css" />
+    <link rel="stylesheet" href="./css/icons.css" />
     <script type="module" src="./js/appearance.js"></script>
     <script type="module" src="./js/app.js"></script>
   </head>
@@ -33,7 +34,23 @@
           ><button class="text-button" data-action="instructions">How to play</button
           ><a class="nav-create" href="./create/">Create a Puzzle</a
           ><button class="text-button" data-action="stats">
-            Your stats <span aria-hidden="true">↗</span></button
+            Your stats
+            <span aria-hidden="true"
+              ><svg
+                class="ui-icon"
+                viewBox="0 0 24 24"
+                width="24"
+                height="24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="M7 17 17 7M7 7h10v10" /></svg
+            ></span></button
           ><a id="account-link" class="account-link" href="./account.html">Account</a>
 
           <button
@@ -43,7 +60,21 @@
             aria-label="Switch to dark mode"
             aria-pressed="false"
           >
-            <span data-theme-symbol aria-hidden="true">☾</span
+            <span data-theme-symbol aria-hidden="true"
+              ><svg
+                class="ui-icon"
+                viewBox="0 0 24 24"
+                width="24"
+                height="24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="M20.8 14.3A9 9 0 0 1 9.7 3.2a9 9 0 1 0 11.1 11.1Z" /></svg></span
             ><span data-theme-label>Dark mode</span>
           </button>
         </nav>
@@ -71,7 +102,24 @@
           </select>
           <span id="preview-note" class="fine-print"></span>
         </div>
-        <a href="./admin.html" class="text-button">← Back to owner desk</a>
+        <a href="./admin.html" class="text-button"
+          ><svg
+            class="ui-icon"
+            viewBox="0 0 24 24"
+            width="24"
+            height="24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path d="M20 12H4m6-6-6 6 6 6" />
+          </svg>
+          Back to owner desk</a
+        >
         <p class="fine-print">
           Prepared drafts for this date are available here. Finish any other edition in the owner
           desk to include it.
@@ -83,7 +131,7 @@
             ><span class="live-dot"></span><span id="slate-label">THE DAILY SLATE</span></span
           ><time id="today-date"></time>
         </div>
-        
+
         <section class="hero" aria-labelledby="hero-title">
           <div class="hero-copy">
             <div class="seasonal-badge" data-season-badge hidden>
@@ -97,7 +145,23 @@
           </div>
           <div class="scoreboard" aria-label="Your progress today">
             <div class="scoreboard-top">
-              <span>YOUR SCOREBOARD</span><span aria-hidden="true">✦</span>
+              <span>YOUR SCOREBOARD</span
+              ><span data-scoreboard-symbol aria-hidden="true"
+                ><svg
+                  class="ui-icon"
+                  viewBox="0 0 24 24"
+                  width="24"
+                  height="24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path d="m12 2 2.7 7.3L22 12l-7.3 2.7L12 22l-2.7-7.3L2 12l7.3-2.7Z" /></svg
+              ></span>
             </div>
             <div class="scoreboard-main">
               <strong id="completed-count">0<span>/3</span></strong
@@ -105,27 +169,40 @@
             </div>
             <div class="scoreboard-bottom">
               <span id="streak-summary">Build your daily habit</span
-              ><span aria-hidden="true">↗</span>
+              ><span aria-hidden="true"
+                ><svg
+                  class="ui-icon"
+                  viewBox="0 0 24 24"
+                  width="24"
+                  height="24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path d="M7 17 17 7M7 7h10v10" /></svg
+              ></span>
             </div>
             <div class="scoreboard-lines" aria-hidden="true"></div>
           </div>
         </section>
-          <div class="section-heading games-heading">
-            <h2 id="big-three-title">The Big Three<span class="brand-dot">.</span></h2>
-              <div class="edition-picker public-editions">
-                <label for="play-league">Today's edition</label>
-                <select id="play-league">
-                  <option value="general">General</option>
-                </select>
-                <span id="edition-note">
-                  Fresh challenges, every day.
-                </span>
-              </div>
-            <span id="reset-label">
-              NEXT SLATE IN
-              <strong id="reset-countdown">—</strong>
-            </span>
+        <div class="section-heading games-heading">
+          <h2 id="big-three-title">The Big Three<span class="brand-dot">.</span></h2>
+          <div class="edition-picker public-editions">
+            <label for="play-league">Today's edition</label>
+            <select id="play-league">
+              <option value="general">General</option>
+            </select>
+            <span id="edition-note"> Fresh challenges, every day. </span>
           </div>
+          <span id="reset-label">
+            NEXT SLATE IN
+            <strong id="reset-countdown">—</strong>
+          </span>
+        </div>
         <div id="game-cards" class="game-cards" aria-labelledby="big-three-title">
           <a class="game-card player-card" href="#player"
             ><div class="card-top">
@@ -167,9 +244,23 @@
             <div class="card-detail"><span>5 CLUES</span><span>~2 MIN</span></div>
             <div class="card-bottom">
               <span class="card-status" data-card-status="player">Play today's game</span
-              ><span class="circle-arrow" aria-hidden="true">↗</span>
-            </div></a
-          >
+              ><span class="circle-arrow" aria-hidden="true"
+                ><svg
+                  class="ui-icon"
+                  viewBox="0 0 24 24"
+                  width="24"
+                  height="24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path d="M7 17 17 7M7 7h10v10" /></svg
+              ></span></div
+          ></a>
           <a class="game-card ladder-card" href="#ladder"
             ><div class="card-top">
               <span class="game-number">02 / THE CLIMB</span
@@ -228,9 +319,23 @@
             <div class="card-detail"><span>5 RUNGS</span><span>~3 MIN</span></div>
             <div class="card-bottom">
               <span class="card-status" data-card-status="ladder">Play today's game</span
-              ><span class="circle-arrow" aria-hidden="true">↗</span>
-            </div></a
-          >
+              ><span class="circle-arrow" aria-hidden="true"
+                ><svg
+                  class="ui-icon"
+                  viewBox="0 0 24 24"
+                  width="24"
+                  height="24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path d="M7 17 17 7M7 7h10v10" /></svg
+              ></span></div
+          ></a>
           <a class="game-card cross-card" href="#cross"
             ><div class="card-top">
               <span class="game-number">03 / THE CROSS</span
@@ -262,9 +367,23 @@
             <div class="card-detail"><span>MINI CROSSWORD</span><span>~4 MIN</span></div>
             <div class="card-bottom">
               <span class="card-status" data-card-status="cross">Play today's game</span
-              ><span class="circle-arrow" aria-hidden="true">↗</span>
-            </div></a
-          >
+              ><span class="circle-arrow" aria-hidden="true"
+                ><svg
+                  class="ui-icon"
+                  viewBox="0 0 24 24"
+                  width="24"
+                  height="24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path d="M7 17 17 7M7 7h10v10" /></svg
+              ></span></div
+          ></a>
         </div>
         <section id="other-games" class="other-games" aria-labelledby="other-games-title" hidden>
           <div class="section-heading">
@@ -293,9 +412,23 @@
               <div class="card-detail"><span>3 × 3 GRID</span><span>TAKE YOUR TIME</span></div>
               <div class="card-bottom">
                 <span class="card-status" data-card-status="grid">Play today's game</span
-                ><span class="circle-arrow" aria-hidden="true">↗</span>
-              </div></a
-            >
+                ><span class="circle-arrow" aria-hidden="true"
+                  ><svg
+                    class="ui-icon"
+                    viewBox="0 0 24 24"
+                    width="24"
+                    height="24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path d="M7 17 17 7M7 7h10v10" /></svg
+                ></span></div
+            ></a>
             <a class="game-card drill-card" href="#drill" hidden
               ><div class="card-top">
                 <span class="game-number">05 / THE FINAL WHISTLE</span
@@ -309,17 +442,47 @@
               <div class="card-detail"><span>DAILY LEADERBOARD</span><span>2 MIN</span></div>
               <div class="card-bottom">
                 <span class="card-status" data-card-status="drill">Play today's game</span
-                ><span class="circle-arrow" aria-hidden="true">↗</span>
-              </div></a
-            >
+                ><span class="circle-arrow" aria-hidden="true"
+                  ><svg
+                    class="ui-icon"
+                    viewBox="0 0 24 24"
+                    width="24"
+                    height="24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path d="M7 17 17 7M7 7h10v10" /></svg
+                ></span></div
+            ></a>
           </div>
         </section>
         <div class="daily-note">
-          <span class="daily-note-symbol" aria-hidden="true">✳</span>
+          <span class="daily-note-symbol" aria-hidden="true"
+            ><svg
+              class="ui-icon"
+              viewBox="0 0 24 24"
+              width="24"
+              height="24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path d="M12 2v20M2 12h20M5 5l14 14M19 5 5 19" /></svg
+          ></span>
           <div>
             <strong>Show off your score!</strong>
             <p id="slate-share-message">
-              Finish Player Guess, Stat Ladder, and CrossSport to share The Big Three. Finish all games to send a full summary. No spoilers.
+              Finish Player Guess, Stat Ladder, and CrossSport to share The Big Three. Finish all
+              games to send a full summary. No spoilers.
             </p>
           </div>
           <div class="slate-share-buttons">
@@ -330,7 +493,22 @@
               aria-describedby="slate-share-message"
               disabled
             >
-              Share The Big Three ↗</button
+              Share The Big Three
+              <svg
+                class="ui-icon"
+                viewBox="0 0 24 24"
+                width="24"
+                height="24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="M7 17 17 7M7 7h10v10" />
+              </svg></button
             ><button
               class="button secondary share-all-button"
               id="share-all-scores"
@@ -338,12 +516,44 @@
               aria-describedby="slate-share-message"
               disabled
             >
-              Share all scores ↗
+              Share all scores
+              <svg
+                class="ui-icon"
+                viewBox="0 0 24 24"
+                width="24"
+                height="24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="M7 17 17 7M7 7h10v10" />
+              </svg>
             </button>
           </div>
         </div>
         <div class="creator-invite">
-          <span>Have a puzzle idea of your own?</span><a href="./create/">Create a Puzzle →</a>
+          <span>Have a puzzle idea of your own?</span
+          ><a href="./create/"
+            >Create a Puzzle
+            <svg
+              class="ui-icon"
+              viewBox="0 0 24 24"
+              width="24"
+              height="24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path d="M4 12h16m-6-6 6 6-6 6" /></svg
+          ></a>
         </div>
         <button
           id="reset-practice"
@@ -356,7 +566,23 @@
       </section>
       <section id="game-view" hidden aria-labelledby="game-title">
         <div class="play-top">
-          <a href="#" class="back-link" id="game-back-link">← All games</a
+          <a href="#" class="back-link" id="game-back-link"
+            ><svg
+              class="ui-icon"
+              viewBox="0 0 24 24"
+              width="24"
+              height="24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path d="M20 12H4m6-6-6 6 6 6" />
+            </svg>
+            All games</a
           ><button class="text-button" data-action="instructions">Rules & scoring</button>
         </div>
         <div class="game-heading">
@@ -381,7 +607,24 @@
     </main>
     <footer class="site-footer shell">
       <span class="footer-brand">A fresh slate. Every day.</span><span>Made for fans, by fans.</span
-      ><span>A Stine Production</span><a href="./admin.html">Owner desk ↗</a>
+      ><span>A Stine Production</span
+      ><a href="./admin.html"
+        >Owner desk
+        <svg
+          class="ui-icon"
+          viewBox="0 0 24 24"
+          width="24"
+          height="24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path d="M7 17 17 7M7 7h10v10" /></svg
+      ></a>
     </footer>
     <dialog id="instructions-dialog" class="dialog">
       <div class="dialog-top">

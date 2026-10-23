@@ -1,0 +1,22 @@
+.ui-icon {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  flex: none;
+  vertical-align: -0.15em;
+}
+
+.daily-note-symbol {
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+
+/* SVG artwork replaces the original Halloween font glyph. */
+:root[data-season="halloween"] .scoreboard-top span[data-scoreboard-symbol] {
+  font-size: 23px;
+  color: var(--accent);
+}
+:root[data-season="halloween"] .scoreboard-top span[data-scoreboard-symbol]::after {
+  content: none;
+}

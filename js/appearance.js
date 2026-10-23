@@ -11,6 +11,7 @@ import {
 import { loadAppearance } from "./appearance-store.js";
 import { withTimeout } from "./async.js";
 import { createHalloweenDecorations } from "./halloween.js";
+import { icon } from "./icons.js";
 
 function browserStorage(name) {
   try {
@@ -61,7 +62,7 @@ function renderMode(mode = colorMode(modePreference(), system.matches)) {
     button.setAttribute("aria-label", `Switch to ${dark ? "light" : "dark"} mode`);
     button.title = `Switch to ${dark ? "light" : "dark"} mode`;
     button.querySelector("[data-theme-label]").textContent = dark ? "Light mode" : "Dark mode";
-    button.querySelector("[data-theme-symbol]").textContent = dark ? "☀" : "☾";
+    button.querySelector("[data-theme-symbol]").innerHTML = icon(dark ? "sun" : "moon");
   }
 }
 
@@ -71,9 +72,12 @@ function renderSeason() {
   root.dataset.season = season;
   const details = SEASONS[season];
   halloween.setActive(season === "halloween");
+  const scoreboardSymbol = document.querySelector("[data-scoreboard-symbol]");
+  if (scoreboardSymbol)
+    scoreboardSymbol.innerHTML = icon(season === "halloween" ? "moon" : "sparkle");
   for (const badge of document.querySelectorAll("[data-season-badge]")) {
     badge.hidden = season === "classic";
-    badge.querySelector("[data-season-symbol]").textContent = details.symbol;
+    badge.querySelector("[data-season-symbol]").innerHTML = icon(details.icon);
     badge.querySelector("[data-season-label]").textContent = details.label;
   }
   const banner = document.querySelector("#appearance-preview");

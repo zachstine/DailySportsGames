@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="../../css/admin.css" />
     <link rel="stylesheet" href="../../css/community.css" />
     <link rel="stylesheet" href="../../css/appearance.css" />
+    <link rel="stylesheet" href="../../css/icons.css" />
     <script type="module" src="../../js/appearance.js"></script>
     <script type="module" src="../../js/submissions.js"></script>
   </head>
@@ -35,7 +36,21 @@
             aria-label="Switch to dark mode"
             aria-pressed="false"
           >
-            <span data-theme-symbol aria-hidden="true">☾</span
+            <span data-theme-symbol aria-hidden="true"
+              ><svg
+                class="ui-icon"
+                viewBox="0 0 24 24"
+                width="24"
+                height="24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="M20.8 14.3A9 9 0 0 1 9.7 3.2a9 9 0 1 0 11.1 11.1Z" /></svg></span
             ><span data-theme-label>Dark mode</span>
           </button>
         </nav>
@@ -94,7 +109,24 @@
               <tbody id="queue-body"></tbody>
             </table>
           </div>
-          <button id="review-more" class="text-button" hidden>Load older submissions →</button>
+          <button id="review-more" class="text-button" hidden>
+            Load older submissions
+            <svg
+              class="ui-icon"
+              viewBox="0 0 24 24"
+              width="24"
+              height="24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path d="M4 12h16m-6-6 6 6-6 6" />
+            </svg>
+          </button>
         </section>
         <section id="review-detail" class="admin-panel" hidden>
           <p class="eyebrow">THE OWNER'S EDIT</p>
@@ -118,7 +150,23 @@
           </p>
           <div id="review-editor"></div>
           <div class="review-actions">
-            <button class="button secondary" id="review-preview">Preview puzzle ↗</button
+            <button class="button secondary" id="review-preview">
+              Preview puzzle
+              <svg
+                class="ui-icon"
+                viewBox="0 0 24 24"
+                width="24"
+                height="24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="M7 17 17 7M7 7h10v10" />
+              </svg></button
             ><button class="button secondary" id="review-save">Save review edits</button
             ><button class="button" id="review-approve">Approve</button
             ><button class="button danger" id="review-reject">Reject</button
@@ -145,7 +193,23 @@
     </main>
     <footer class="site-footer shell">
       <span class="footer-brand">A fresh slate. Every day.</span
-      ><a href="../../admin.html">Owner desk ↗</a>
+      ><a href="../../admin.html"
+        >Owner desk
+        <svg
+          class="ui-icon"
+          viewBox="0 0 24 24"
+          width="24"
+          height="24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path d="M7 17 17 7M7 7h10v10" /></svg
+      ></a>
     </footer>
     <dialog id="delete-confirm" class="dialog" aria-labelledby="delete-title">
       <h2 id="delete-title">Delete this submission?</h2>

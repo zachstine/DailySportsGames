@@ -1,10 +1,10 @@
 import { dateKey, validDate } from "./core.js";
 
 export const SEASONS = {
-  classic: { name: "Classic", symbol: "✦", label: "A fresh slate. Every day." },
-  halloween: { name: "Halloween", symbol: "🎃", label: "No tricks. Just trivia." },
-  thanksgiving: { name: "Thanksgiving", symbol: "🍂", label: "A full plate of sports." },
-  christmas: { name: "Christmas", symbol: "❄", label: "A little holiday competition." },
+  classic: { name: "Classic", icon: "sparkle", label: "A fresh slate. Every day." },
+  halloween: { name: "Halloween", icon: "pumpkin", label: "No tricks. Just trivia." },
+  thanksgiving: { name: "Thanksgiving", icon: "leaves", label: "A full plate of sports." },
+  christmas: { name: "Christmas", icon: "snowflake", label: "A little holiday competition." },
 };
 export const APPEARANCE_KEYS = {
   mode: "dsg:appearance:mode",

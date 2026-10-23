@@ -13,6 +13,7 @@
     <link rel="stylesheet" href="./css/community.css" />
     <link rel="stylesheet" href="./css/upgrades.css" />
     <link rel="stylesheet" href="./css/appearance.css" />
+    <link rel="stylesheet" href="./css/icons.css" />
     <script type="module" src="./js/appearance.js"></script>
     <script type="module" src="./js/admin.js"></script>
   </head>
@@ -28,7 +29,24 @@
         >
         <nav aria-label="Owner navigation">
           <a href="./admin/submissions/">Review submissions</a
-          ><a href="./index.html">← Back to games</a>
+          ><a href="./index.html"
+            ><svg
+              class="ui-icon"
+              viewBox="0 0 24 24"
+              width="24"
+              height="24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path d="M20 12H4m6-6-6 6 6 6" />
+            </svg>
+            Back to games</a
+          >
 
           <button
             class="theme-toggle"
@@ -37,7 +55,21 @@
             aria-label="Switch to dark mode"
             aria-pressed="false"
           >
-            <span data-theme-symbol aria-hidden="true">☾</span
+            <span data-theme-symbol aria-hidden="true"
+              ><svg
+                class="ui-icon"
+                viewBox="0 0 24 24"
+                width="24"
+                height="24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="M20.8 14.3A9 9 0 0 1 9.7 3.2a9 9 0 1 0 11.1 11.1Z" /></svg></span
             ><span data-theme-label>Dark mode</span>
           </button>
         </nav>
@@ -89,7 +121,23 @@
     </main>
     <footer class="site-footer shell">
       <span class="footer-brand">A fresh slate. Every day.</span
-      ><a href="./index.html">Back to games ↗</a>
+      ><a href="./index.html"
+        >Back to games
+        <svg
+          class="ui-icon"
+          viewBox="0 0 24 24"
+          width="24"
+          height="24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path d="M7 17 17 7M7 7h10v10" /></svg
+      ></a>
     </footer>
     <template id="owner-desk-template">
       <section class="admin-panel appearance-panel" aria-labelledby="appearance-title">
@@ -105,10 +153,10 @@
           <div class="field">
             <label for="site-season">Seasonal theme</label>
             <select id="site-season">
-              <option value="classic">✦ Classic</option>
-              <option value="halloween">🎃 Halloween</option>
-              <option value="thanksgiving">🍂 Thanksgiving</option>
-              <option value="christmas">❄ Christmas</option>
+              <option value="classic">Classic</option>
+              <option value="halloween">Halloween</option>
+              <option value="thanksgiving">Thanksgiving</option>
+              <option value="christmas">Christmas</option>
             </select>
           </div>
           <div class="field">
@@ -335,7 +383,23 @@
             </p>
             <div class="publish-buttons">
               <button id="validate" class="button secondary">Validate slate</button
-              ><button id="preview" class="button secondary">Preview editions ↗</button
+              ><button id="preview" class="button secondary">
+                Preview editions
+                <svg
+                  class="ui-icon"
+                  viewBox="0 0 24 24"
+                  width="24"
+                  height="24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path d="M7 17 17 7M7 7h10v10" />
+                </svg></button
               ><button id="save-local" class="button secondary">Save draft on this device</button
               ><button id="save-cloud" class="button secondary" disabled>Save Firebase draft</button
               ><button id="publish" class="button" disabled>Publish / schedule slate</button>

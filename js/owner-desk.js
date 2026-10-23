@@ -29,6 +29,7 @@ import { downloadGame, GameEditor } from "./game-editor.js";
 import { collectPreviewEditions } from "./preview.js";
 import { withTimeout } from "./async.js";
 import { createAppearanceDesk } from "./appearance-desk.js";
+import { icon } from "./icons.js";
 
 export function createOwnerDesk(root, connection) {
   const controller = new AbortController();
@@ -427,7 +428,9 @@ ${escape(question.question)}</textarea
                         : "Private draft"}</span
                     >
                   </div>
-                  <button class="text-button" data-load="${escape(item.date)}">Open →</button>
+                  <button class="text-button" data-load="${escape(item.date)}">
+                    Open ${icon("arrow-right")}
+                  </button>
                 </div>`,
             )
             .join("")
@@ -597,7 +600,7 @@ ${escape(question.question)}</textarea
       writing = false;
       setDocumentState();
       button.disabled = false;
-      button.textContent = "Preview editions ↗";
+      button.innerHTML = `Preview editions ${icon("arrow-up-right")}`;
     }
   });
   $("#start-sample").addEventListener("click", () => {

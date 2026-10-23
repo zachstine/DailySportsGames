@@ -105,7 +105,8 @@ function paintList() {
           (item) =>
             /* HTML */ `<tr>
               <td>
-                <button class="text-button" data-review="${escape(item.id)}">Review →</button
+                <button class="text-button" data-review="${escape(item.id)}">
+                  Review ${icon("arrow-right")}</button
                 ><small>${escape(item.id)}</small>
               </td>
               <td>${escape(GAME_NAMES[item.game] || "Unknown game")}</td>
@@ -437,3 +438,4 @@ else
   } catch {
     message("The review queue couldn't connect. Try again when you're online.", true);
   }
+import { icon } from "./icons.js";
