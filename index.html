@@ -83,12 +83,7 @@
             ><span class="live-dot"></span><span id="slate-label">THE DAILY SLATE</span></span
           ><time id="today-date"></time>
         </div>
-        <div class="edition-picker public-editions">
-          <label for="play-league">Today’s edition</label
-          ><select id="play-league">
-            <option value="general">General</option></select
-          ><span id="edition-note">Fresh challenges, every day.</span>
-        </div>
+        
         <section class="hero" aria-labelledby="hero-title">
           <div class="hero-copy">
             <p class="eyebrow hero-kicker">A LITTLE KNOWLEDGE. A LITTLE COMPETITION.</p>
@@ -116,10 +111,22 @@
             <div class="scoreboard-lines" aria-hidden="true"></div>
           </div>
         </section>
-        <div class="section-heading">
-          <h2 id="big-three-title">The Big Three<span class="brand-dot">.</span></h2>
-          <span id="reset-label">NEXT SLATE IN <strong id="reset-countdown">—</strong></span>
-        </div>
+          <div class="section-heading games-heading">
+            <h2 id="big-three-title">The Big Three<span class="brand-dot">.</span></h2>
+              <div class="edition-picker public-editions">
+                <label for="play-league">Today's edition</label>
+                <select id="play-league">
+                  <option value="general">General</option>
+                </select>
+                <span id="edition-note">
+                  Fresh challenges, every day.
+                </span>
+              </div>
+            <span id="reset-label">
+              NEXT SLATE IN
+              <strong id="reset-countdown">—</strong>
+            </span>
+          </div>
         <div id="game-cards" class="game-cards" aria-labelledby="big-three-title">
           <a class="game-card player-card" href="#player"
             ><div class="card-top">
