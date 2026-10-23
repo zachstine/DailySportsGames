@@ -407,6 +407,11 @@ function renderDashboard() {
   $("#account-link").href =
     `./account.html${currentLeague() === "general" ? "" : `?league=${currentLeague()}`}`;
   $("#hero-game-count").textContent = `${games.length} games to put your sports brain to work.`;
+  const heroGameCount = $("#hero-game-count");
+  if (heroGameCount) {
+     heroGameCount.textContent =
+       `${games.length} games to put your sports brain to work.`;
+   }
   for (const game of GAMES) {
     const card = $(`[href="#${game}"].game-card`);
     if (card) {
