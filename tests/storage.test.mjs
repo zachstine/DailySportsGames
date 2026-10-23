@@ -114,6 +114,8 @@ test("refreshing saved account totals preserves the original local guesses and s
   assert.deepEqual(restored, state);
   assert.match(shareScore("player", restored, sample), /3\/5\n🟥⬜🟩⬛⬛/);
   assert.equal(allResults()[0].score, 3);
+  assert.equal(pendingResults()[0].sharePattern, "rwgbb");
+  markResultRecorded("player", sample.date);
   assert.deepEqual(pendingResults(), []);
 });
 

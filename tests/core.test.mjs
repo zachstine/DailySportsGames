@@ -387,7 +387,8 @@ test("combined sharing supports restored totals and labels practice and previews
   assert.ok(text.includes("CrossSport: Complete\n🟨 Assisted · 2 checks · 3 letter reveals"));
   assert.ok(!text.includes("00:00"));
   assert.ok(!text.includes("Saved result"));
-  assert.ok(!/[🟥⬛⬜]/u.test(text));
+  assert.ok(text.includes("❔🟩⬛⬛⬛"));
+  assert.ok(!/[🟥⬜]/u.test(text));
   assert.ok(shareSlate(states, sample, "practice").startsWith("Daily Sports Games · Practice\n"));
   assert.ok(
     shareSlate(states, sample, "preview").startsWith("Daily Sports Games · Owner preview\n"),
@@ -413,7 +414,10 @@ test("restored account totals lock completed games without inventing a guess his
   assert.ok(text.includes("9/15"));
   assert.ok(!text.includes("Saved result"));
   assert.ok(!text.includes("🟩"));
-  assert.equal(text, `Daily Sports Games · ${sample.date}\nStat Ladder: 9/15`);
+  assert.equal(
+    text,
+    `Daily Sports Games · ${sample.date}\nStat Ladder: 9/15\n❔❔❔❔❔\n❔ Earlier guess history unavailable`,
+  );
   assert.throws(
     () => stateFromRecordedResult({ ...saved, date: "2026-10-21" }, sample),
     /Invalid recorded result/,

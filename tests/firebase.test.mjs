@@ -19,12 +19,14 @@ const result = {
   reveals: 0,
 };
 
-function connection({ failure, existing } = {}) {
+function connection({ failure, existing, historyFailure } = {}) {
   const writes = [],
-    reads = [];
+    reads = [],
+    updates = [];
   return {
     writes,
     reads,
+    updates,
     db: {},
     auth: { currentUser: { uid: "guest-123" } },
     store: {
@@ -36,7 +38,12 @@ function connection({ failure, existing } = {}) {
       },
       getDocFromServer: async (path) => {
         reads.push(path);
-        return { exists: () => Boolean(existing), data: () => existing };
+        const stored = typeof existing === "function" ? existing(reads.length) : existing;
+        return { exists: () => Boolean(stored), data: () => stored };
+      },
+      updateDoc: async (path, data) => {
+        updates.push({ path, data });
+        if (historyFailure) throw historyFailure;
       },
     },
   };
@@ -61,6 +68,47 @@ test("daily results use one guest/date/game ID and only score metadata", async (
     },
   ]);
   assert.deepEqual(client.reads, []);
+});
+
+test("new results store compact emoji history and older results add it without changing totals or timestamps", async () => {
+  const completed = { ...result, score: 4, sharePattern: "rgbbb" };
+  const fresh = connection();
+  const confirmed = await writeDailyResult(fresh, completed);
+  assert.equal(fresh.writes[0].data.sharePattern, "rgbbb");
+  assert.equal(confirmed.sharePattern, "rgbbb");
+  const failure = Object.assign(new Error("immutable"), { code: "permission-denied" });
+  const existing = { ...result, score: 4, playerId: "guest-123", completedAt: "original-time" };
+  const client = connection({ failure, existing });
+  await writeDailyResult(client, completed);
+  assert.deepEqual(client.updates, [
+    { path: `results/guest-123_${result.date}_player`, data: { sharePattern: "rgbbb" } },
+  ]);
+  assert.equal(existing.score, 4);
+  assert.equal(existing.completedAt, "original-time");
+  const canonical = connection({ failure, existing: { ...existing, sharePattern: "wgbbb" } });
+  assert.equal((await writeDailyResult(canonical, completed)).sharePattern, "wgbbb");
+  assert.deepEqual(canonical.updates, []);
+});
+
+test("history backfill races use the first valid pattern, while network failures remain queued", async () => {
+  const denied = Object.assign(new Error("immutable"), { code: "permission-denied" });
+  const offline = Object.assign(new Error("offline"), { code: "unavailable" });
+  const existing = { ...result, score: 4, playerId: "guest-123", completedAt: "original-time" };
+  const completed = { ...result, score: 4, sharePattern: "rgbbb" };
+  const raced = connection({
+    failure: denied,
+    historyFailure: denied,
+    existing: (read) => (read === 1 ? existing : { ...existing, sharePattern: "wgbbb" }),
+  });
+  assert.equal((await writeDailyResult(raced, completed)).sharePattern, "wgbbb");
+  await assert.rejects(
+    writeDailyResult(connection({ failure: denied, existing, historyFailure: offline }), completed),
+    offline,
+  );
+  await assert.rejects(
+    writeDailyResult(connection({ failure: denied, existing, historyFailure: denied }), completed),
+    denied,
+  );
 });
 
 test("zero-point completions and assisted crosswords are valid daily results", async () => {

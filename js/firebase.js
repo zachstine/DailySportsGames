@@ -110,18 +110,41 @@ export async function writeDailyResult(connection, result, expectedUid) {
     ...(leagueOf(result) !== "general" ? { league: result.league } : {}),
   };
   if (result.elapsedMs !== undefined) data.elapsedMs = result.elapsedMs;
+  if (result.sharePattern !== undefined) data.sharePattern = result.sharePattern;
+  const { sharePattern, ...totals } = data;
+  const confirm = (snapshot) => {
+    if (!snapshot.exists()) return null;
+    const stored = snapshot.data();
+    return Object.entries(totals).every(([key, value]) => stored[key] === value) &&
+      validDailyResult(stored)
+      ? stored
+      : null;
+  };
   try {
     await store.setDoc(reference, { ...data, completedAt: store.serverTimestamp() });
+    return data;
   } catch (error) {
     if (error.code !== "permission-denied") throw error;
-    // A lost acknowledgement or another tab can retry the same completion.
-    // Rules keep the original result immutable; confirm it instead of updating it.
-    const existing = await store.getDocFromServer(reference);
-    if (
-      !existing.exists() ||
-      !Object.entries(data).every(([key, value]) => existing.data()[key] === value)
-    )
-      throw error;
+    // Totals remain immutable. Older completions may add their missing pattern
+    // once, using the original browser's history, without rewriting the score.
+    const existing = confirm(await store.getDocFromServer(reference));
+    if (!existing) throw error;
+    if (existing.sharePattern || !sharePattern)
+      return {
+        ...totals,
+        ...(existing.sharePattern ? { sharePattern: existing.sharePattern } : {}),
+      };
+    if (auth.currentUser?.uid !== playerId)
+      throw new Error("The player account changed while recording emoji history.");
+    try {
+      await store.updateDoc(reference, { sharePattern });
+      return data;
+    } catch (historyError) {
+      if (historyError.code !== "permission-denied") throw historyError;
+      const raced = confirm(await store.getDocFromServer(reference));
+      if (!raced?.sharePattern) throw historyError;
+      return { ...totals, sharePattern: raced.sharePattern };
+    }
   }
 }
 
@@ -142,7 +165,16 @@ export async function playerResultsForDate(connection, date, league = "general")
     throw new Error("The player account changed while loading results.");
   return snapshot.docs
     .map((doc) => {
-      const { game, score, won, checks, reveals, elapsedMs, league: storedLeague } = doc.data();
+      const {
+        game,
+        score,
+        won,
+        checks,
+        reveals,
+        elapsedMs,
+        sharePattern,
+        league: storedLeague,
+      } = doc.data();
       return {
         game,
         score,
@@ -151,6 +183,7 @@ export async function playerResultsForDate(connection, date, league = "general")
         reveals,
         ...(storedLeague ? { league: storedLeague } : {}),
         ...(elapsedMs !== undefined ? { elapsedMs } : {}),
+        ...(sharePattern !== undefined ? { sharePattern } : {}),
         date,
         mode: "daily",
         done: true,

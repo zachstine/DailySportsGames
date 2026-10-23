@@ -211,15 +211,15 @@ test("mixed restored and local scores share real totals and keep available emoji
     ]),
   );
   let text = shareSlate(states, sample);
-  for (const score of ["Player Guess: 3/5", "Stat Ladder: 8/15", "The Matchup: 9/9\n2 mistakes"])
+  for (const score of ["Player Guess: 3/5", "Stat Ladder: 8/15", "The Matchup: 9/9", "2 mistakes"])
     assert.ok(text.includes(score));
   assert.ok(!text.includes("Saved result"));
-  assert.ok(!text.includes("⬛"));
+  assert.ok(text.includes("❔❔🟩⬛⬛"));
   states.player = guessPlayer(newState("player", sample), sample, "Wrong");
   states.player = guessPlayer(states.player, sample, "", true);
   states.player = guessPlayer(states.player, sample, sample.playerGuess.answer);
   text = shareBigThree(states, sample);
-  assert.match(text, /Player Guess: 3\/5\n🟥⬜🟩⬛⬛\nStat Ladder: 8\/15\nCrossSport:/);
+  assert.match(text, /Player Guess: 3\/5\n🟥⬜🟩⬛⬛\nStat Ladder: 8\/15\n❔❔❔❔❔\nCrossSport:/);
   for (const answer of [
     sample.playerGuess.answer,
     ...sample.statLadder.questions.map((q) => q.answer),

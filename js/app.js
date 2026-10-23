@@ -14,7 +14,7 @@ import {
   shareSlate,
   shareBigThree,
   BASE_GAMES,
-  stateFromRecordedResult,
+  mergeRecordedState,
   SolveTimer,
   validElapsedMs,
   formatDuration,
@@ -64,6 +64,7 @@ import { validCreatorName } from "./puzzles.js";
 import { withTimeout } from "./async.js";
 import { firstAcross, crossSelection, crosswordLetters } from "./crossword.js";
 import { icon } from "./icons.js";
+import { missingShareHistory } from "./share-history.js";
 
 const $ = (selector) => document.querySelector(selector);
 const escape = (value) =>
@@ -320,19 +321,18 @@ async function loadSlate(forcePractice = false) {
           return;
         }
         importRecordedResults(records);
-        for (const record of records) {
+        const imported = allResults();
+        for (const cloudRecord of records) {
+          const record =
+            imported.find(
+              (r) =>
+                r.game === cloudRecord.game &&
+                r.date === puzzle.date &&
+                leagueOf(r) === currentLeague(),
+            ) ?? cloudRecord;
           const state = states[record.game];
           if (!state) continue;
-          if (
-            !state.done ||
-            state.score !== record.score ||
-            (record.game === "cross" &&
-              (state.checks !== record.checks ||
-                (state.revealCount ?? state.reveals.length) !== record.reveals ||
-                (state.elapsedMs ?? null) !== (record.elapsedMs ?? null)))
-          ) {
-            states[record.game] = stateFromRecordedResult(record, puzzle);
-          }
+          states[record.game] = mergeRecordedState(state, record, puzzle);
           saveGame(record.game, puzzle, mode, states[record.game]);
         }
       } catch {
@@ -540,8 +540,27 @@ async function flushResults() {
       resultErrors.delete(`${scope}:${key}`);
       refreshResultMessages();
       try {
-        await recordDailyResult(result, scope);
-        markResultRecorded(result.game, result.date, scope, leagueOf(result));
+        const confirmed = await recordDailyResult(result, scope);
+        markResultRecorded(
+          result.game,
+          result.date,
+          scope,
+          leagueOf(result),
+          confirmed.sharePattern,
+        );
+        if (
+          mode === "daily" &&
+          !busy &&
+          scope === getPlayerScope() &&
+          result.date === puzzle?.date &&
+          leagueOf(result) === currentLeague() &&
+          states[result.game]?.done
+        ) {
+          const previous = states[result.game];
+          states[result.game] = mergeRecordedState(previous, confirmed, puzzle);
+          saveGame(result.game, puzzle, mode, states[result.game]);
+          if (states[result.game] !== previous) route();
+        }
       } catch {
         resultErrors.add(`${scope}:${key}`);
       }
@@ -1410,7 +1429,7 @@ function restoredResultNote(game) {
     Your score was restored from your account.
     ${game === "cross"
       ? "The completed solution is shown; your original revealed squares are unavailable here."
-      : "Your original attempt history is unavailable here."}
+      : "Individual guesses remain in the browser where you played."}
   </p>`;
 }
 
@@ -1767,8 +1786,8 @@ document.addEventListener("click", async (event) => {
     $("#share-text").value = shareText;
     $("#share-text").rows = sharingAll ? Math.min(18, shareText.split("\n").length) : 6;
     const sharingGames = sharingAll ? (bigThree ? BASE_GAMES : games) : [game];
-    $("#share-history-note").hidden = !sharingGames.some(
-      (game) => ["player", "ladder", "grid"].includes(game) && states[game].recordedOnly,
+    $("#share-history-note").hidden = !sharingGames.some((game) =>
+      missingShareHistory(game, states[game]),
     );
     $("#share-dialog").showModal();
   }

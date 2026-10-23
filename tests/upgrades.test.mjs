@@ -226,7 +226,17 @@ test("five-game combined sharing retains every game's own blocks and labels leag
       { ...newState(game, sample), done: true, won: true, score: game === "grid" ? 9 : 1 },
     ]),
   );
-  states.player.attempts = [{ correct: false }, { correct: false }, { correct: true }];
+  states.player.score = 3;
+  states.player.attempts = [false, false, true].map((correct) => ({
+    guess: "Test guess",
+    correct,
+    skipped: false,
+  }));
+  states.ladder.attempts = [true, false, false, false, false].map((correct) => ({
+    guess: "Test guess",
+    correct,
+    skipped: false,
+  }));
   states.grid.placements = [0, 1, 2, 3, 4, 5, 6, 7, 8];
   const text = shareSlate(states, sample);
   assert.match(text, /🟥🟥🟩⬛⬛/);

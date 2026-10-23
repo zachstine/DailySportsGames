@@ -19,6 +19,7 @@ import {
 import { writeDailyResult, playerResultsForDate } from "../js/firebase.js";
 import { gameEnvelope } from "../js/puzzles.js";
 import { loadAppearance, saveAppearance } from "../js/appearance-store.js";
+import { stateFromRecordedResult, shareScore } from "../js/core.js";
 if (!process.env.FIRESTORE_EMULATOR_HOST)
   throw new Error("Start the demo Firestore emulator first.");
 const require = createRequire(
@@ -341,6 +342,125 @@ test("daily General, NFL, grid, and Drill metadata record separately while priva
     writeDailyResult(player, { ...result, game: "drill", league: "nfl" }),
     /Invalid daily/,
   );
+});
+
+test("saved emoji patterns restore on another client with separate General and NFL histories", async () => {
+  const uid = "emoji-player";
+  const firstDevice = client(uid, "anonymous");
+  const common = { date: day, mode: "daily", done: true, won: true, checks: 0, reveals: 0 };
+  await writeDailyResult(firstDevice, {
+    ...common,
+    game: "player",
+    score: 4,
+    sharePattern: "rgbbb",
+  });
+  await writeDailyResult(firstDevice, {
+    ...common,
+    game: "ladder",
+    score: 8,
+    sharePattern: "rrgrg",
+  });
+  await writeDailyResult(firstDevice, {
+    ...common,
+    game: "grid",
+    score: 9,
+    checks: 2,
+    sharePattern: "gggyggggg",
+  });
+  await writeDailyResult(firstDevice, {
+    ...common,
+    game: "cross",
+    score: 1,
+    checks: 2,
+    reveals: 1,
+    elapsedMs: 75432,
+  });
+  await writeDailyResult(firstDevice, { ...common, game: "drill", score: 3 });
+  await writeDailyResult(firstDevice, {
+    ...common,
+    game: "player",
+    league: "nfl",
+    score: 4,
+    sharePattern: "wgbbb",
+  });
+  const restored = await playerResultsForDate(client(uid), day);
+  const slate = { ...sample, date: day };
+  const text = (game) => {
+    const saved = restored.find((r) => r.game === game);
+    return shareScore(game, stateFromRecordedResult(saved, slate), slate);
+  };
+  assert.match(text("player"), /4\/5\n🟥🟩⬛⬛⬛/);
+  assert.match(text("ladder"), /8\/15\n🟥🟥🟩🟥🟩/);
+  assert.match(text("grid"), /🟩🟩🟩\n🟨🟩🟩\n🟩🟩🟩/);
+  assert.match(text("cross"), /01:15\n🟨 Assisted · 2 checks · 1 letter reveal/);
+  assert.match(text("drill"), /⏱️ 2:00 · 🟩/);
+  const [nfl] = await playerResultsForDate(client(uid), day, "nfl");
+  assert.equal(nfl.sharePattern, "wgbbb");
+  const ref = doc(client("other").db, `results/${uid}_${day}_player`);
+  await assertFails(getDoc(ref));
+  await assertFails(updateDoc(ref, { sharePattern: "wgbbb" }));
+});
+
+test("a legacy completion adds its missing pattern once while totals and timestamps remain immutable", async () => {
+  const uid = "legacy-emoji-player",
+    player = client(uid, "anonymous");
+  const result = {
+    date: day,
+    mode: "daily",
+    done: true,
+    won: true,
+    checks: 0,
+    reveals: 0,
+    game: "player",
+    score: 4,
+  };
+  await writeDailyResult(player, result);
+  const ref = doc(player.db, `results/${uid}_${day}_player`);
+  const before = (await getDoc(ref)).data();
+  await assertFails(updateDoc(ref, { score: 5, sharePattern: "gbbbb" }));
+  await assertFails(updateDoc(ref, { sharePattern: "gbbbb" }));
+  await assertFails(updateDoc(ref, { sharePattern: "Michael Jordan" }));
+  await assertFails(
+    updateDoc(doc(client("other").db, `results/${uid}_${day}_player`), { sharePattern: "rgbbb" }),
+  );
+  await writeDailyResult(player, { ...result, sharePattern: "rgbbb" });
+  const after = (await getDoc(ref)).data();
+  assert.equal(after.sharePattern, "rgbbb");
+  assert.equal(after.score, 4);
+  assert.ok(after.completedAt.isEqual(before.completedAt));
+  await assertFails(updateDoc(ref, { sharePattern: "wgbbb" }));
+  const canonical = await writeDailyResult(player, { ...result, sharePattern: "wgbbb" });
+  assert.equal(canonical.sharePattern, "rgbbb");
+  await assertFails(updateDoc(ref, { completedAt: serverTimestamp() }));
+});
+
+test("rules reject emoji patterns inconsistent with the original score or assistance total", async () => {
+  for (const [i, result] of [
+    { game: "player", score: 4, sharePattern: "gbbbb" },
+    { game: "player", score: 4, sharePattern: "rrgbb" },
+    { game: "player", score: 4, sharePattern: "?gbbb" },
+    { game: "player", score: 0, sharePattern: "bbbbb" },
+    { game: "ladder", score: 8, sharePattern: "ggggg" },
+    { game: "ladder", score: 8, sharePattern: "rrgr" },
+    { game: "grid", score: 9, checks: 0, sharePattern: "ygggggggg" },
+    { game: "grid", score: 9, checks: 1, sharePattern: "yyggggggg" },
+    { game: "grid", score: 9, checks: 1, sharePattern: "ggggggggg" },
+    { game: "cross", score: 1, sharePattern: "ggggg" },
+    { game: "drill", score: 2, sharePattern: "ggggg" },
+  ].entries()) {
+    const uid = `bad-emoji-${i}`;
+    await assertFails(
+      setDoc(doc(client(uid).db, `results/${uid}_${day}_${result.game}`), {
+        playerId: uid,
+        date: day,
+        won: result.score > 0,
+        checks: 0,
+        reveals: 0,
+        completedAt: serverTimestamp(),
+        ...result,
+      }),
+    );
+  }
 });
 
 test("live league content stays locked while owner-only creator corrections remain allowed", async () => {

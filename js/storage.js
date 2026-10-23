@@ -12,6 +12,7 @@ import {
   normalize,
 } from "./core.js";
 import { previewEditions } from "./preview.js";
+import { resultSharePattern, validSharePattern } from "./share-history.js";
 
 const PREFIX = "dsg:v1:";
 export let storageAvailable = true;
@@ -71,8 +72,18 @@ export function gameKey(game, puzzle, mode, scope = playerScope) {
 
 export function loadGame(game, puzzle, mode) {
   let saved = readLocal(gameKey(game, puzzle, mode));
-  if (!saved && mode === "daily" && playerScope && readLocal("legacy-player") === playerScope) {
-    saved = readLocal(gameKey(game, puzzle, mode, null));
+  if (mode === "daily" && playerScope && readLocal("legacy-player") === playerScope) {
+    const legacy = readLocal(gameKey(game, puzzle, mode, null));
+    if (
+      !saved ||
+      (saved.recordedOnly &&
+        legacy?.done &&
+        !legacy.recordedOnly &&
+        legacy.score === saved.score &&
+        legacy.won === saved.won &&
+        resultSharePattern(game, legacy))
+    )
+      saved = legacy ?? saved;
   }
   if (
     saved &&
@@ -153,6 +164,17 @@ export function saveGame(game, puzzle, mode, state) {
     const rest = list.filter(
       (r) => r && !(r.game === game && r.date === puzzle.date && leagueOf(r) === leagueOf(puzzle)),
     );
+    const checks =
+      game === "cross"
+        ? state.checks
+        : game === "grid"
+          ? (state.totalMistakes ?? state.mistakes.reduce((a, b) => a + b, 0))
+          : 0;
+    const pattern =
+      resultSharePattern(game, state) ??
+      (previous?.score === state.score && previous?.checks === checks && validSharePattern(previous)
+        ? previous.sharePattern
+        : undefined);
     const recorded = writeLocal(resultsKey(playerScope), [
       ...rest,
       {
@@ -163,12 +185,9 @@ export function saveGame(game, puzzle, mode, state) {
         done: true,
         won: state.won,
         score: state.score,
-        checks:
-          game === "cross"
-            ? state.checks
-            : game === "grid"
-              ? (state.totalMistakes ?? state.mistakes.reduce((a, b) => a + b, 0))
-              : 0,
+        ...(pattern ? { sharePattern: pattern } : {}),
+        ...(previous?.recordedPattern ? { recordedPattern: previous.recordedPattern } : {}),
+        checks,
         reveals: game === "cross" ? (state.revealCount ?? state.reveals.length) : 0,
         ...(game === "cross" && validElapsedMs(state.elapsedMs)
           ? { elapsedMs: state.elapsedMs }
@@ -192,17 +211,27 @@ export function pendingResults(scope = playerScope) {
   // Earlier daily saves did not have assistance counts or a cloud status.
   // Practice and preview records must never become daily submissions.
   return allResults(scope)
-    .filter((r) => r.mode === "daily" && r.done === true && r.cloud !== "recorded")
+    .filter(
+      (r) =>
+        r.mode === "daily" &&
+        r.done === true &&
+        (r.cloud !== "recorded" || (r.sharePattern && r.sharePattern !== r.recordedPattern)),
+    )
     .map((r) => ({ ...r, checks: r.checks ?? 0, reveals: r.reveals ?? 0 }))
     .filter(validDailyResult);
 }
 
-export function markResultRecorded(game, date, scope = playerScope, league = "general") {
+export function markResultRecorded(game, date, scope = playerScope, league = "general", pattern) {
   return writeLocal(
     resultsKey(scope),
     allResults(scope).map((r) =>
       r.game === game && r.date === date && leagueOf(r) === league
-        ? { ...r, cloud: "recorded" }
+        ? {
+            ...r,
+            cloud: "recorded",
+            ...(pattern ? { sharePattern: pattern } : {}),
+            recordedPattern: pattern ?? r.sharePattern,
+          }
         : r,
     ),
   );
@@ -210,7 +239,12 @@ export function markResultRecorded(game, date, scope = playerScope, league = "ge
 
 export function resultRecorded(game, date, scope = playerScope, league = "general") {
   return allResults(scope).some(
-    (r) => r.game === game && r.date === date && leagueOf(r) === league && r.cloud === "recorded",
+    (r) =>
+      r.game === game &&
+      r.date === date &&
+      leagueOf(r) === league &&
+      r.cloud === "recorded" &&
+      (!r.sharePattern || r.sharePattern === r.recordedPattern),
   );
 }
 
@@ -220,7 +254,20 @@ export function importRecordedResults(records, scope = playerScope) {
     const index = list.findIndex(
       (r) => r.game === record.game && r.date === record.date && leagueOf(r) === leagueOf(record),
     );
-    const result = { ...record, mode: "daily", done: true, cloud: "recorded" };
+    const previous = list[index];
+    const preservePattern =
+      !record.sharePattern &&
+      previous?.score === record.score &&
+      previous?.checks === record.checks &&
+      validSharePattern(previous);
+    const result = {
+      ...record,
+      ...(preservePattern ? { sharePattern: previous.sharePattern } : {}),
+      ...(record.sharePattern ? { recordedPattern: record.sharePattern } : {}),
+      mode: "daily",
+      done: true,
+      cloud: "recorded",
+    };
     if (index < 0) list.push(result);
     else list[index] = result;
   }

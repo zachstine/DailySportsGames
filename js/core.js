@@ -1,3 +1,5 @@
+import { validSharePattern, resultSharePattern, shareBlocks } from "./share-history.js";
+
 export const TIME_ZONE = "America/New_York";
 export const BASE_GAMES = ["player", "ladder", "cross"];
 export const GAMES = [...BASE_GAMES, "grid", "drill"];
@@ -456,7 +458,8 @@ export function validDailyResult(result) {
       : game === "grid"
         ? score === 9 && reveals === 0
         : checks === 0 && reveals === 0) &&
-    (result.elapsedMs === undefined || (game === "cross" && validElapsedMs(result.elapsedMs)))
+    (result.elapsedMs === undefined || (game === "cross" && validElapsedMs(result.elapsedMs))) &&
+    (result.sharePattern === undefined || validSharePattern(result))
   );
 }
 
@@ -468,18 +471,41 @@ export function stateFromRecordedResult(result, puzzle) {
     !gamesForPuzzle(puzzle).includes(result.game)
   )
     throw new Error("Invalid recorded result.");
-  // A saved total does not contain the original guesses or revealed squares.
+  // Share patterns preserve outcomes without storing names that were guessed.
   return {
     ...newState(result.game, puzzle),
     done: true,
     won: result.won,
     score: result.score,
     recordedOnly: true,
+    ...(result.sharePattern ? { sharePattern: result.sharePattern } : {}),
     ...(result.game === "cross"
       ? { checks: result.checks, revealCount: result.reveals, elapsedMs: result.elapsedMs ?? null }
       : {}),
     ...(result.game === "grid" ? { totalMistakes: result.checks } : {}),
   };
+}
+
+export function mergeRecordedState(state, result, puzzle) {
+  const restored = stateFromRecordedResult(result, puzzle);
+  const game = result.game;
+  const localPattern = resultSharePattern(game, state);
+  if (
+    !state.done ||
+    state.score !== result.score ||
+    state.won !== result.won ||
+    (result.sharePattern && localPattern && result.sharePattern !== localPattern) ||
+    (game === "cross" &&
+      (state.checks !== result.checks ||
+        (state.revealCount ?? state.reveals.length) !== result.reveals ||
+        (state.elapsedMs ?? null) !== (result.elapsedMs ?? null))) ||
+    (game === "grid" &&
+      (state.totalMistakes ?? state.mistakes.reduce((a, b) => a + b, 0)) !== result.checks)
+  )
+    return restored;
+  return state.recordedOnly && result.sharePattern
+    ? { ...state, sharePattern: result.sharePattern }
+    : state;
 }
 
 export function guessPlayer(state, puzzle, guess, skip = false) {
@@ -555,27 +581,15 @@ function gameShareLines(game, state) {
   let score, blocks;
   if (game === "player") {
     score = `${state.score}/5`;
-    blocks = state.recordedOnly
-      ? ""
-      : [
-          ...state.attempts.map((a) => (a.correct ? "🟩" : a.skipped ? "⬜" : "🟥")),
-          ...Array(5 - state.attempts.length).fill("⬛"),
-        ].join("");
+    blocks = shareBlocks(game, state);
   } else if (game === "ladder") {
     score = `${state.score}/15`;
-    blocks = state.recordedOnly
-      ? ""
-      : state.attempts.map((a) => (a.correct ? "🟩" : a.skipped ? "⬜" : "🟥")).join("");
+    blocks = shareBlocks(game, state);
   } else if (game === "grid") {
     score = `${state.score}/9`;
-    blocks = state.recordedOnly
-      ? `${state.totalMistakes} mistake${state.totalMistakes === 1 ? "" : "s"}`
-      : Array.from({ length: 3 }, (_, row) =>
-          state.placements
-            .slice(row * 3, row * 3 + 3)
-            .map((name, i) => (name === null ? "⬛" : state.mistakes[row * 3 + i] ? "🟨" : "🟩"))
-            .join(""),
-        ).join("\n");
+    blocks = shareBlocks(game, state);
+    const mistakes = state.totalMistakes ?? state.mistakes.reduce((a, b) => a + b, 0);
+    blocks += `\n${mistakes} mistake${mistakes === 1 ? "" : "s"}`;
   } else if (game === "drill") {
     score = `${state.score} answer${state.score === 1 ? "" : "s"}`;
     blocks = `⏱️ 2:00 · ${state.score ? "🟩" : "🟥"}${state.ranked ? " Ranked" : ""}`;
@@ -589,36 +603,42 @@ function gameShareLines(game, state) {
   return [`${GAME_NAMES[game]}: ${score}`, blocks].filter(Boolean);
 }
 
+function shareText(lines, url) {
+  if (lines.some((line) => line.includes("❔"))) lines.push("❔ Earlier guess history unavailable");
+  return [...lines, url].filter(Boolean).join("\n");
+}
+
 export function shareSlate(states, puzzle, mode = "daily", url = "") {
   const games = gamesForPuzzle(puzzle);
   if (!games.every((game) => states[game]?.done))
     throw new Error("Finish all games to share your full slate.");
-  return [
-    `Daily Sports Games · ${shareEdition(puzzle, mode)}`,
-    ...games.flatMap((game) => gameShareLines(game, states[game])),
+  return shareText(
+    [
+      `Daily Sports Games · ${shareEdition(puzzle, mode)}`,
+      ...games.flatMap((game) => gameShareLines(game, states[game])),
+    ],
     url,
-  ]
-    .filter(Boolean)
-    .join("\n");
+  );
 }
 
 export function shareScore(game, state, puzzle, mode = "daily", url = "") {
-  return [`Daily Sports Games · ${shareEdition(puzzle, mode)}`, ...gameShareLines(game, state), url]
-    .filter(Boolean)
-    .join("\n");
+  return shareText(
+    [`Daily Sports Games · ${shareEdition(puzzle, mode)}`, ...gameShareLines(game, state)],
+    url,
+  );
 }
 
 export function shareBigThree(states, puzzle, mode = "daily", url = "") {
   if (!BASE_GAMES.every((game) => states[game]?.done))
     throw new Error("Finish Player Guess, Stat Ladder, and CrossSport to share The Big Three.");
-  return [
-    `Daily Sports Games · ${shareEdition(puzzle, mode)}`,
-    "The Big Three",
-    ...BASE_GAMES.flatMap((game) => gameShareLines(game, states[game])),
+  return shareText(
+    [
+      `Daily Sports Games · ${shareEdition(puzzle, mode)}`,
+      "The Big Three",
+      ...BASE_GAMES.flatMap((game) => gameShareLines(game, states[game])),
+    ],
     url,
-  ]
-    .filter(Boolean)
-    .join("\n");
+  );
 }
 
 export function puzzleFingerprint(puzzle) {

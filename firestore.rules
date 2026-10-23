@@ -71,6 +71,25 @@ service cloud.firestore {
         && get(path).data.published == true
         && get(path).data.unlockAt <= request.time;
     }
+    function validResultPattern(r) {
+      let p = r.get('sharePattern', '');
+      return p is string
+        && ((r.game == 'player'
+            && p.size() == 5
+            && ((r.score == 0 && p.matches('[rw]{5}'))
+              || (r.score >= 1 && r.score <= 5
+                && p.matches('[rw]*gb*') && p[5 - r.score] == 'g')))
+          || (r.game == 'ladder' && p.matches('[grw]{5}')
+            && r.score == (p[0] == 'g' ? 1 : 0)
+              + (p[1] == 'g' ? 2 : 0)
+              + (p[2] == 'g' ? 3 : 0)
+              + (p[3] == 'g' ? 4 : 0)
+              + (p[4] == 'g' ? 5 : 0))
+          || (r.game == 'grid' && r.score == 9 && p.matches('[gy]{9}')
+            && p.replace('g', '').size() <= r.checks
+            && ((r.checks == 0 && p == 'ggggggggg')
+              || (r.checks > 0 && p != 'ggggggggg'))));
+    }
     function validResult(id) {
       let r = request.resource.data;
       let league = r.get('league', 'general');
@@ -93,7 +112,8 @@ service cloud.firestore {
           'checks',
           'reveals',
           'completedAt',
-          'elapsedMs'
+          'elapsedMs',
+          'sharePattern'
         ])
         && r.keys().hasAll(['playerId', 'date', 'game', 'score', 'won', 'checks', 'reveals', 'completedAt'])
         && r.playerId == request.auth.uid
@@ -124,7 +144,8 @@ service cloud.firestore {
             && r.checks == 0
             && r.reveals == 0))
         && r.completedAt == request.time && released(r.date, league)
-        && field in get(path).data.puzzle;
+        && field in get(path).data.puzzle
+        && (!('sharePattern' in r) || validResultPattern(r));
     }
     match /siteSettings/appearance {
       allow get: if true;
@@ -270,12 +291,18 @@ service cloud.firestore {
       allow update, delete: if false;
     }
     match /results/{id} {
-      // One immutable completion per guest, date, and game. No public score list.
+      // Scores stay immutable. A missing emoji pattern can be filled once.
       allow create: if validResult(id);
       allow get: if owner() || (request.auth != null && resource.data.playerId == request.auth.uid);
       allow list: if owner() || (request.auth != null
           && resource.data.playerId == request.auth.uid && request.query.limit <= 120);
-      allow update, delete: if false;
+      allow update: if request.auth != null
+        && resource.data.playerId == request.auth.uid
+        && !('sharePattern' in resource.data)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sharePattern'])
+        && 'sharePattern' in request.resource.data
+        && validResultPattern(request.resource.data);
+      allow delete: if false;
     }
     function newSubmission(id) {
       let s = request.resource.data;
