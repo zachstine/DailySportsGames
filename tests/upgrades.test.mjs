@@ -127,6 +127,34 @@ test("Drill CSV supports aliases and rejects ambiguous, empty, or oversized answ
   assert.doesNotThrow(() => validateGame("drill", { question: "Test", answers: [null] }));
 });
 
+test("Drill supports optional daily rules while existing puzzles without rules stay valid", () => {
+  const drill = structuredClone(sample.twoMinuteDrill);
+  delete drill.rules;
+  assert.deepEqual(validateGame("drill", drill), []);
+  for (const rules of ["", "Team names or nicknames are accepted.", "A".repeat(500)])
+    assert.deepEqual(validateGame("drill", { ...drill, rules }), []);
+  for (const rules of [null, 123, [], {}, "A".repeat(501)])
+    assert.ok(
+      validateGame("drill", { ...drill, rules }).some((error) => error.includes("rule statement")),
+    );
+  assert.equal(blankSlate(sample.date).twoMinuteDrill.rules, "");
+});
+
+test("daily Drill rules survive owner drafts and individual JSON imports without altering other games", () => {
+  const rules = "Use the team nickname. City names alone are not accepted.";
+  const data = { ...structuredClone(sample.twoMinuteDrill), rules };
+  const envelope = JSON.parse(JSON.stringify(gameEnvelope("drill", data)));
+  const merged = mergeGameIntoSlate(sample, envelope, sample.date);
+  assert.equal(merged.twoMinuteDrill.rules, rules);
+  for (const field of ["playerGuess", "statLadder", "crossSport", "gridIron"])
+    assert.deepEqual(merged[field], sample[field]);
+  assert.equal(editorSlate(merged).twoMinuteDrill.rules, rules);
+  assert.equal(exportGameFromSlate(merged, "drill").data.rules, rules);
+  saveDraft(merged);
+  assert.equal(getDraft(sample.date).twoMinuteDrill.rules, rules);
+  assert.deepEqual(validatePuzzle(merged), []);
+});
+
 test("Drill has unlimited misses, one point per unique accepted answer, and a strict 120-second deadline", () => {
   let state = newState("drill", sample);
   assert.throws(() => guessDrill(state, sample, "Eagles", 0), /Start the clock/);

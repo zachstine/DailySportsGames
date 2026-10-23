@@ -323,17 +323,26 @@ ${escape(value)}</textarea
         ${this.field("question", "Daily question or category", d.question, {
           textarea: true,
           max: 500,
-        })}${this.field(
+        })}${this.field("rules", "Daily rule statement · optional", d.rules ?? "", {
+          textarea: true,
+          max: 500,
+        })}
+        <p class="field-help">
+          Shown below this day's question. For example: “Team names or nicknames are accepted.”
+          Match this statement to your answer bank. Leave blank to show no extra rule statement.
+        </p>
+        ${this.field(
           "answers",
           "Accepted answers · separated by commas",
           formatDrillAnswers(d.answers),
           { textarea: true, max: 50000 },
         )}
         <p class="field-help">
-          Example: Patrick Mahomes, Wes Welker. A comma starts a new answer; an optional | adds an
-          alias for that answer. Full names and unique last names are accepted automatically; first
-          names alone are rejected. Capitalization, spacing, accents, and punctuation are ignored.
-          Up to 500 answers. Verify the complete list before publishing.
+          Examples: Patrick Mahomes | Mahomes, Kansas City Chiefs | Chiefs. A comma starts a new
+          answer; an optional | adds an alias for that answer. For players, full names and unique
+          last names are accepted; first names alone are rejected. Capitalization, spacing, accents,
+          and punctuation are ignored. Up to 500 answers. Verify the complete list before
+          publishing.
         </p>`;
     this.paintGrid();
   }
@@ -370,7 +379,11 @@ ${escape(value)}</textarea
       };
     }
     if (this.game === "drill")
-      return { question: value("question"), answers: parseDrillAnswers(value("answers")) };
+      return {
+        question: value("question"),
+        rules: value("rules"),
+        answers: parseDrillAnswers(value("answers")),
+      };
     return {
       size: +value("size"),
       entries: this.data.entries.map((_, i) => ({

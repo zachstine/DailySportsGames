@@ -282,7 +282,9 @@ async function loadSlate(forcePractice = false) {
     $("#play-league").value = currentLeague();
     $("#play-league").disabled = mode !== "daily" || editionOptions.length < 2;
     const ownerPreview = mode === "preview" && !previewContext;
-    $(".public-editions").hidden = ownerPreview;
+    const canChangeEdition = mode === "daily" && editionOptions.length > 1;
+    $(".public-editions").hidden = !canChangeEdition;
+    $("#reset-label").style.gridColumn = canChangeEdition ? "" : "-2 / -1";
     $("#owner-preview-bar").hidden = !ownerPreview;
     if (ownerPreview) {
       $("#preview-league").innerHTML = LEAGUES.map(
@@ -1135,8 +1137,7 @@ function renderDrill() {
     </div>
     <p class="eyebrow">THE QUESTION</p>
     <h2 class="drill-question">${escape(data.question)}</h2>
-    <p class="game-rule">Type the full name or last name, first names only will not be accepted.</p>
-    ${body}
+    ${data.rules?.trim() ? /* HTML */ `<p class="game-rule">${escape(data.rules)}</p>` : ""} ${body}
     <div id="leaderboard-panel">${leaderboardPanel()}</div>
   </div>`;
 }

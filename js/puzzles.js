@@ -65,7 +65,7 @@ export function blankGame(game) {
   if (game === "cross") return { size: 5, entries: [] };
   if (game === "grid")
     return { names: [], cells: Array.from({ length: 9 }, () => ({ clue: "", answer: "" })) };
-  if (game === "drill") return { question: "", answers: [] };
+  if (game === "drill") return { question: "", rules: "", answers: [] };
   throw new Error("Choose a game.");
 }
 export function blankSlate(date = dateKey(), league = "general") {

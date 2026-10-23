@@ -139,6 +139,7 @@
   },
   "twoMinuteDrill": {
     "question": "Name the five NFL teams with bird nicknames.",
+    "rules": "Enter a team name or nickname, such as Atlanta Falcons or Falcons.",
     "answers": [
       {
         "answer": "Arizona Cardinals",

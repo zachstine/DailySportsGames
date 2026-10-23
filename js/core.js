@@ -304,7 +304,7 @@ export function validateGame(game, data) {
     ladder: ["questions"],
     cross: ["size", "entries"],
     grid: ["names", "cells"],
-    drill: ["question", "answers"],
+    drill: ["question", "rules", "answers"],
   };
   if (Object.keys(data).some((key) => !fields[game].includes(key)))
     errors.push(`${GAME_NAMES[game]} contains an unexpected field.`);
@@ -359,6 +359,8 @@ export function validateGame(game, data) {
   if (game === "drill") {
     if (!text(data.question, 500))
       errors.push("Two Minute Drill needs a question (maximum 500 characters).");
+    if (data.rules !== undefined && (typeof data.rules !== "string" || data.rules.length > 500))
+      errors.push("Two Minute Drill rule statement must be text (maximum 500 characters).");
     if (!Array.isArray(data.answers) || !data.answers.length || data.answers.length > 500)
       errors.push("Two Minute Drill needs 1–500 accepted answers.");
     else {
