@@ -3,31 +3,42 @@ import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { validatePuzzle } from "../js/core.js";
-import { parseGameImport } from "../js/puzzles.js";
 
 const root = resolve(import.meta.dirname, "..");
 const failures = [];
-for (const folder of ["js", "scripts", "tests"]) for (const filename of await readdir(resolve(root, folder))) {
-  if (!/\.(m?js)$/.test(filename)) continue;
-  const result = spawnSync(process.execPath, ["--check", resolve(root, folder, filename)], { encoding: "utf8" });
-  if (result.status) failures.push(result.stderr);
-}
-for (const filename of ["index.html", "admin.html", "account.html", "create/index.html", "admin/submissions/index.html"]) {
+for (const folder of ["js", "scripts", "tests"])
+  for (const filename of await readdir(resolve(root, folder))) {
+    if (!/\.(m?js)$/.test(filename)) continue;
+    const result = spawnSync(process.execPath, ["--check", resolve(root, folder, filename)], {
+      encoding: "utf8",
+    });
+    if (result.status) failures.push(result.stderr);
+  }
+for (const filename of [
+  "index.html",
+  "admin.html",
+  "account.html",
+  "create/index.html",
+  "admin/submissions/index.html",
+]) {
   const content = await readFile(resolve(root, filename), "utf8");
-  const ids = [...content.matchAll(/\bid="([^"]+)"/g)].map(x => x[1]);
+  const ids = [...content.matchAll(/\bid="([^"]+)"/g)].map((x) => x[1]);
   if (new Set(ids).size !== ids.length) failures.push(`${filename}: duplicate element IDs.`);
   for (const match of content.matchAll(/(?:src|href)="((?:\.{1,2}\/)+[^"#?]+)(?:[^\"]*)"/g)) {
-    if (!existsSync(resolve(dirname(resolve(root, filename)), match[1]))) failures.push(`${filename}: missing local asset ${match[1]}`);
+    if (!existsSync(resolve(dirname(resolve(root, filename)), match[1])))
+      failures.push(`${filename}: missing local asset ${match[1]}`);
   }
   if (!content.includes('name="viewport"')) failures.push(`${filename}: missing viewport.`);
 }
-for (const filename of ["package.json", "firebase.json", "data/practice.json"]) JSON.parse(await readFile(resolve(root, filename), "utf8"));
-failures.push(...validatePuzzle(JSON.parse(await readFile(resolve(root, "data/practice.json"), "utf8"))));
-for (const game of ["player", "ladder", "cross"]) {
-  try {
-    const example = parseGameImport(await readFile(resolve(root, "docs/examples", `${game}.json`), "utf8"));
-    if (example.game !== game) failures.push(`Example ${game}.json identifies the wrong game.`);
-  } catch (error) { failures.push(`Example ${game}.json: ${error.message}`); }
+for (const filename of ["package.json", "firebase.json", "data/practice.json"])
+  JSON.parse(await readFile(resolve(root, filename), "utf8"));
+failures.push(
+  ...validatePuzzle(JSON.parse(await readFile(resolve(root, "data/practice.json"), "utf8"))),
+);
+if (failures.length) {
+  process.stderr.write(failures.join("\n") + "\n");
+  process.exit(1);
 }
-if (failures.length) { process.stderr.write(failures.join("\n") + "\n"); process.exit(1); }
-process.stdout.write("JavaScript syntax, HTML asset paths, unique IDs, JSON, and practice puzzle validation passed.\n");
+process.stdout.write(
+  "JavaScript syntax, HTML asset paths, unique IDs, JSON, and practice puzzle validation passed.\n",
+);

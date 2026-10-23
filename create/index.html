@@ -1,7 +1,135 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#142b28"><title>Create a puzzle — Daily Sports Games</title><link rel="icon" href="../favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="../css/styles.css"><link rel="stylesheet" href="../css/admin.css"><link rel="stylesheet" href="../css/community.css"><script type="module" src="../js/create.js"></script></head>
-<body><a class="skip-link" href="#main">Skip to creator</a><header class="site-header"><div class="header-inner"><a class="brand" href="../index.html"><span class="brand-mark">d<span>sg</span></span><span>daily<span class="brand-light">sports</span>games<span class="brand-dot">.</span></span></a><nav aria-label="Creator navigation"><a href="../index.html">← Back to games</a></nav></div></header>
-<main class="shell admin-shell community-shell" id="main"><div class="admin-title"><div><p class="eyebrow">FROM THE GROUP CHAT TO GAME DAY</p><h1>Create a puzzle<span class="brand-dot">.</span></h1><p>Bring the facts. Build the challenge. Give your friends a reason to say, “I knew that.”</p></div></div>
-<section id="creator-confirmation" class="admin-panel confirmation-panel" tabindex="-1" hidden><p class="eyebrow">IN THE REVIEW QUEUE</p><h2>Thanks for the challenge.</h2><p>Your <strong id="submitted-game"></strong> suggestion is saved privately for the owner to review. It hasn't been published.</p><p class="fine-print">Submission reference: <strong id="submission-reference"></strong></p><div class="button-row"><button class="button" id="create-another">Create another puzzle</button><a class="button secondary" href="../index.html">Back to today's games</a></div></section>
-<form id="creator-form" novalidate><fieldset id="creator-fields" class="plain-fieldset"><div class="creator-layout"><div><section class="admin-panel"><p class="eyebrow">01 / PICK YOUR CHALLENGE</p><h2>Which game are you making?</h2><fieldset class="game-picker"><legend class="sr-only">Game to create</legend><label><input type="radio" name="creator-game" value="player" checked><span>Player Guess<small>One player. Five telling clues.</small></span></label><label><input type="radio" name="creator-game" value="ladder"><span>Stat Ladder<small>Five questions. Easy to obscure.</small></span></label><label><input type="radio" name="creator-game" value="cross"><span>CrossSport<small>Sports names and phrases that connect.</small></span></label></fieldset><div class="field"><label for="creator-name">Your creator name</label><input id="creator-name" maxlength="24" minlength="2" autocomplete="nickname" placeholder="Joe123" aria-describedby="name-help"><p class="field-help" id="name-help">2–24 letters, numbers, spaces, dots, underscores, or hyphens. The owner reviews this name before it appears as your credit.</p></div><div class="honeypot" aria-hidden="true"><label for="creator-website">Website</label><input id="creator-website" tabindex="-1" autocomplete="off"></div></section><section class="admin-panel"><p class="eyebrow">02 / MAKE IT A GOOD ONE</p><h2 id="creator-game-title">Player Guess</h2><div id="creator-editor"></div></section></div><aside class="admin-panel creator-actions"><p class="eyebrow">03 / TEST YOUR CHALLENGE</p><h2>Ready for a run-through?</h2><p class="fine-print">Preview uses the real game. It won't change your daily scores, and your draft stays here while you test.</p><button class="button secondary wide-button" id="creator-preview" type="button">Preview my puzzle ↗</button><button class="button wide-button" id="creator-submit" type="submit">Submit for review</button><p class="fine-print">No account needed. Suggestions are private until reviewed. The owner can edit the puzzle and creator name before scheduling it.</p><p class="fine-print">Up to five suggestions per 24 hours, at least one minute apart. Your working draft is saved on this device.</p><div id="creator-feedback" class="notice" role="status" hidden></div></aside></div></fieldset></form></main><footer class="site-footer shell"><span class="footer-brand">A fresh slate. Every day.</span><a href="../index.html">Back to games ↗</a></footer></body></html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#142b28" />
+    <title>Create a puzzle — Daily Sports Games</title>
+    <link rel="icon" href="../favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="../css/styles.css" />
+    <link rel="stylesheet" href="../css/admin.css" />
+    <link rel="stylesheet" href="../css/community.css" />
+    <script type="module" src="../js/create.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to creator</a>
+    <header class="site-header">
+      <div class="header-inner">
+        <a class="brand" href="../index.html"
+          ><span class="brand-mark">d<span>sg</span></span
+          ><span
+            >daily<span class="brand-light">sports</span>games<span class="brand-dot">.</span></span
+          ></a
+        >
+        <nav aria-label="Creator navigation"><a href="../index.html">← Back to games</a></nav>
+      </div>
+    </header>
+    <main class="shell admin-shell community-shell" id="main">
+      <div class="admin-title">
+        <div>
+          <p class="eyebrow">FROM THE GROUP CHAT TO GAME DAY</p>
+          <h1>Create a puzzle<span class="brand-dot">.</span></h1>
+          <p>
+            Bring the facts. Build the challenge. Give your friends a reason to say, “I knew that.”
+          </p>
+        </div>
+      </div>
+      <section
+        id="creator-confirmation"
+        class="admin-panel confirmation-panel"
+        tabindex="-1"
+        hidden
+      >
+        <p class="eyebrow">IN THE REVIEW QUEUE</p>
+        <h2>Thanks for the challenge.</h2>
+        <p>
+          Your <strong id="submitted-game"></strong> suggestion is saved privately for the owner to
+          review. It hasn't been published.
+        </p>
+        <p class="fine-print">Submission reference: <strong id="submission-reference"></strong></p>
+        <div class="button-row">
+          <button class="button" id="create-another">Create another puzzle</button
+          ><a class="button secondary" href="../index.html">Back to today's games</a>
+        </div>
+      </section>
+      <form id="creator-form" novalidate>
+        <fieldset id="creator-fields" class="plain-fieldset">
+          <div class="creator-layout">
+            <div>
+              <section class="admin-panel">
+                <p class="eyebrow">01 / PICK YOUR CHALLENGE</p>
+                <h2>Which game are you making?</h2>
+                <fieldset class="game-picker">
+                  <legend class="sr-only">Game to create</legend>
+                  <label
+                    ><input type="radio" name="creator-game" value="player" checked /><span
+                      >Player Guess<small>One player. Five telling clues.</small></span
+                    ></label
+                  ><label
+                    ><input type="radio" name="creator-game" value="ladder" /><span
+                      >Stat Ladder<small>Five questions. Easy to obscure.</small></span
+                    ></label
+                  ><label
+                    ><input type="radio" name="creator-game" value="cross" /><span
+                      >CrossSport<small>Sports names and phrases that connect.</small></span
+                    ></label
+                  >
+                </fieldset>
+                <div class="field">
+                  <label for="creator-name">Your creator name</label
+                  ><input
+                    id="creator-name"
+                    maxlength="24"
+                    minlength="2"
+                    autocomplete="nickname"
+                    placeholder="Joe123"
+                    aria-describedby="name-help"
+                  />
+                  <p class="field-help" id="name-help">
+                    2–24 letters, numbers, spaces, dots, underscores, or hyphens. The owner reviews
+                    this name before it appears as your credit.
+                  </p>
+                </div>
+                <div class="honeypot" aria-hidden="true">
+                  <label for="creator-website">Website</label
+                  ><input id="creator-website" tabindex="-1" autocomplete="off" />
+                </div>
+              </section>
+              <section class="admin-panel">
+                <p class="eyebrow">02 / MAKE IT A GOOD ONE</p>
+                <h2 id="creator-game-title">Player Guess</h2>
+                <div id="creator-editor"></div>
+              </section>
+            </div>
+            <aside class="admin-panel creator-actions">
+              <p class="eyebrow">03 / TEST YOUR CHALLENGE</p>
+              <h2>Ready for a run-through?</h2>
+              <p class="fine-print">
+                Preview uses the real game. It won't change your daily scores, and your draft stays
+                here while you test.
+              </p>
+              <button class="button secondary wide-button" id="creator-preview" type="button">
+                Preview my puzzle ↗</button
+              ><button class="button wide-button" id="creator-submit" type="submit">
+                Submit for review
+              </button>
+              <p class="fine-print">
+                No account needed. Suggestions are private until reviewed. The owner can edit the
+                puzzle and creator name before scheduling it.
+              </p>
+              <p class="fine-print">
+                Up to five suggestions per 24 hours, at least one minute apart. Your working draft
+                is saved on this device.
+              </p>
+              <div id="creator-feedback" class="notice" role="status" hidden></div>
+            </aside>
+          </div>
+        </fieldset>
+      </form>
+    </main>
+    <footer class="site-footer shell">
+      <span class="footer-brand">A fresh slate. Every day.</span
+      ><a href="../index.html">Back to games ↗</a>
+    </footer>
+  </body>
+</html>

@@ -7,5 +7,5 @@ export const firebaseConfig = {
   storageBucket: "dailysportsgames.firebasestorage.app",
   messagingSenderId: "486437112252",
   appId: "1:486437112252:web:ffc5e659fc64aa9e67c3b9",
-  measurementId: "G-HPYTJCLTMK"
+  measurementId: "G-HPYTJCLTMK",
 };

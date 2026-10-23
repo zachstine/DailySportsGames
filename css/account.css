@@ -1,2 +1,182 @@
-.account-shell{padding-top:34px;max-width:1000px}.account-heading{max-width:670px}.account-heading .eyebrow{color:var(--muted)}.account-heading h1{font-family:var(--display);font-size:48px;letter-spacing:-2px;line-height:1.1;margin:12px 0 16px;font-weight:600}.account-heading>p:last-child{color:var(--muted);font-size:14px}.account-layout{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:24px;margin-top:24px;align-items:start}.account-panel{background:white;border:1px solid var(--line);border-radius:14px;padding:27px;min-width:0}.account-panel-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}.account-panel h2{font-family:var(--display);font-size:23px;letter-spacing:-.7px;line-height:1.25;font-weight:600;margin:0}.account-panel-top .eyebrow{font-size:9px;color:var(--muted);margin:0 0 5px}.account-wide{width:100%;justify-content:center}.auth-divider{position:relative;text-align:center;margin:22px 0;color:var(--muted);font-size:10px}.auth-divider:before{content:'';position:absolute;left:0;right:0;top:50%;height:1px;background:var(--line)}.auth-divider span{position:relative;background:#fff;padding:0 12px}.auth-tabs{display:flex;border-bottom:1px solid var(--line);margin:0 0 20px;gap:22px}.auth-tabs button{background:none;border:0;border-bottom:3px solid transparent;padding:10px 0;color:var(--muted);font-size:13px;font-weight:650}.auth-tabs button[aria-selected=true]{border-color:var(--ink);color:var(--ink)}#player-email-form label{display:block;font-size:12px;font-weight:650;margin:15px 0 7px}#player-email-form input{width:100%;font-size:16px}#player-email-form .button{margin-top:22px}.guest-link{display:inline-block;margin-top:20px;font-size:12px;font-weight:650}.account-panel .fine-print{font-size:12px}.player-identity{font-size:17px;font-weight:600;overflow-wrap:anywhere}.account-signout-note{margin-top:20px;margin-bottom:0}.saved-score{display:flex;justify-content:space-between;gap:12px;padding:17px 0;border-bottom:1px solid var(--line);font-size:13px}.saved-score strong{font-family:var(--display);font-size:16px;font-weight:600}.saved-score span{white-space:nowrap}.saved-score small{display:block;font-size:10px;color:var(--muted);margin-top:3px}.account-panel #password-help{margin-top:8px;font-size:11px}.account-panel .pill{font-size:9px;flex-shrink:0}
-@media(max-width:760px){.account-layout{grid-template-columns:1fr;gap:18px}.account-shell{padding-top:24px}.account-heading h1{font-size:39px}.account-heading>p:last-child{font-size:13px}.account-panel{padding:23px 20px}.account-panel h2{font-size:22px}}
+.account-shell {
+  padding-top: 34px;
+  max-width: 1000px;
+}
+.account-heading {
+  max-width: 670px;
+}
+.account-heading .eyebrow {
+  color: var(--muted);
+}
+.account-heading h1 {
+  font-family: var(--display);
+  font-size: 48px;
+  letter-spacing: -2px;
+  line-height: 1.1;
+  margin: 12px 0 16px;
+  font-weight: 600;
+}
+.account-heading > p:last-child {
+  color: var(--muted);
+  font-size: 14px;
+}
+.account-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  gap: 24px;
+  margin-top: 24px;
+  align-items: start;
+}
+.account-panel {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 27px;
+  min-width: 0;
+}
+.account-panel-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.account-panel h2 {
+  font-family: var(--display);
+  font-size: 23px;
+  letter-spacing: -0.7px;
+  line-height: 1.25;
+  font-weight: 600;
+  margin: 0;
+}
+.account-panel-top .eyebrow {
+  font-size: 9px;
+  color: var(--muted);
+  margin: 0 0 5px;
+}
+.account-wide {
+  width: 100%;
+  justify-content: center;
+}
+.auth-divider {
+  position: relative;
+  text-align: center;
+  margin: 22px 0;
+  color: var(--muted);
+  font-size: 10px;
+}
+.auth-divider:before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: var(--line);
+}
+.auth-divider span {
+  position: relative;
+  background: #fff;
+  padding: 0 12px;
+}
+.auth-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--line);
+  margin: 0 0 20px;
+  gap: 22px;
+}
+.auth-tabs button {
+  background: none;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  padding: 10px 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 650;
+}
+.auth-tabs button[aria-selected="true"] {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+#player-email-form label {
+  display: block;
+  font-size: 12px;
+  font-weight: 650;
+  margin: 15px 0 7px;
+}
+#player-email-form input {
+  width: 100%;
+  font-size: 16px;
+}
+#player-email-form .button {
+  margin-top: 22px;
+}
+.guest-link {
+  display: inline-block;
+  margin-top: 20px;
+  font-size: 12px;
+  font-weight: 650;
+}
+.account-panel .fine-print {
+  font-size: 12px;
+}
+.player-identity {
+  font-size: 17px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.account-signout-note {
+  margin-top: 20px;
+  margin-bottom: 0;
+}
+.saved-score {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 17px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+}
+.saved-score strong {
+  font-family: var(--display);
+  font-size: 16px;
+  font-weight: 600;
+}
+.saved-score span {
+  white-space: nowrap;
+}
+.saved-score small {
+  display: block;
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 3px;
+}
+.account-panel #password-help {
+  margin-top: 8px;
+  font-size: 11px;
+}
+.account-panel .pill {
+  font-size: 9px;
+  flex-shrink: 0;
+}
+@media (max-width: 760px) {
+  .account-layout {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+  .account-shell {
+    padding-top: 24px;
+  }
+  .account-heading h1 {
+    font-size: 39px;
+  }
+  .account-heading > p:last-child {
+    font-size: 13px;
+  }
+  .account-panel {
+    padding: 23px 20px;
+  }
+  .account-panel h2 {
+    font-size: 22px;
+  }
+}

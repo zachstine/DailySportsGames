@@ -1,7 +1,149 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#142b28"><meta name="robots" content="noindex,nofollow"><title>Submission review — Daily Sports Games</title><link rel="icon" href="../../favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="../../css/styles.css"><link rel="stylesheet" href="../../css/admin.css"><link rel="stylesheet" href="../../css/community.css"><script type="module" src="../../js/submissions.js"></script></head><body>
-<a class="skip-link" href="#main">Skip to submissions</a><header class="site-header"><div class="header-inner"><a class="brand" href="../../index.html"><span class="brand-mark">d<span>sg</span></span><span>daily<span class="brand-light">sports</span>games<span class="brand-dot">.</span></span></a><nav aria-label="Review navigation"><a href="../../admin.html">Owner desk</a><a href="../../create/">Puzzle creator</a></nav></div></header>
-<main class="shell admin-shell community-shell" id="main"><div class="admin-title"><div><p class="eyebrow">BEFORE THE FIRST WHISTLE</p><h1>The review queue<span class="brand-dot">.</span></h1><p>Check the facts. Polish the clues. Put your community on the scoreboard.</p></div><button id="review-sign-out" class="button secondary" hidden>Sign out</button></div><p id="review-status" class="notice" role="status">Checking owner access…</p><p id="review-sign-in"><a class="button" href="../../admin.html">Sign in at the owner desk</a></p>
-<div id="review-protected" hidden><section class="admin-panel"><div class="queue-filters"><div class="field"><label for="filter-game">Game</label><select id="filter-game"><option value="">All games</option><option value="player">Player Guess</option><option value="ladder">Stat Ladder</option><option value="cross">CrossSport</option></select></div><div class="field"><label for="filter-status">Status</label><select id="filter-status"><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option><option value="published">Published</option><option value="">All statuses</option></select></div><button id="review-refresh" class="button secondary">Refresh</button></div><p id="queue-count" class="fine-print"></p><div class="table-scroll"><table class="queue-table"><thead><tr><th scope="col">Submission</th><th scope="col">Game</th><th scope="col">Submitted by</th><th scope="col">Submitted on</th><th scope="col">Status</th></tr></thead><tbody id="queue-body"></tbody></table></div><button id="review-more" class="text-button" hidden>Load older submissions →</button></section>
-<section id="review-detail" class="admin-panel" hidden><p class="eyebrow">THE OWNER'S EDIT</p><h2 id="review-title" tabindex="-1">Review a submission</h2><p id="review-meta" class="fine-print"></p><p class="fine-print">Original submitted name, kept private: <strong id="original-name"></strong></p><div class="field"><label for="approved-name">Approved public creator name</label><input id="approved-name" maxlength="24" autocomplete="off"><p class="field-help">2–24 letters, numbers, spaces, dots, underscores, or hyphens. Only the approved name travels with the exported game.</p></div><p id="published-note" class="notice" hidden></p><div id="review-editor"></div><div class="review-actions"><button class="button secondary" id="review-preview">Preview puzzle ↗</button><button class="button secondary" id="review-save">Save review edits</button><button class="button" id="review-approve">Approve</button><button class="button danger" id="review-reject">Reject</button><button class="button secondary" id="review-copy" disabled>Copy approved JSON</button><button class="button secondary" id="review-download" disabled>Download game JSON</button></div><div id="review-feedback" role="status" hidden></div><div class="field"><label for="review-json">Finalized game JSON</label><textarea id="review-json" class="review-json" readonly rows="8"></textarea><p class="field-help">After approval, copy or download this one game's JSON. Import it for a chosen date at the owner desk. Approval alone doesn't publish a game.</p></div></section></div>
-</main><footer class="site-footer shell"><span class="footer-brand">A fresh slate. Every day.</span><a href="../../admin.html">Owner desk ↗</a></footer></body></html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#142b28" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>Submission review — Daily Sports Games</title>
+    <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="../../css/styles.css" />
+    <link rel="stylesheet" href="../../css/admin.css" />
+    <link rel="stylesheet" href="../../css/community.css" />
+    <script type="module" src="../../js/submissions.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to submissions</a>
+    <header class="site-header">
+      <div class="header-inner">
+        <a class="brand" href="../../index.html"
+          ><span class="brand-mark">d<span>sg</span></span
+          ><span
+            >daily<span class="brand-light">sports</span>games<span class="brand-dot">.</span></span
+          ></a
+        >
+        <nav aria-label="Review navigation">
+          <a href="../../admin.html">Owner desk</a><a href="../../create/">Puzzle creator</a>
+        </nav>
+      </div>
+    </header>
+    <main class="shell admin-shell community-shell" id="main">
+      <div class="admin-title">
+        <div>
+          <p class="eyebrow">BEFORE THE FIRST WHISTLE</p>
+          <h1>The review queue<span class="brand-dot">.</span></h1>
+          <p>Check the facts. Polish the clues. Put your community on the scoreboard.</p>
+        </div>
+        <button id="review-sign-out" class="button secondary" hidden>Sign out</button>
+      </div>
+      <p id="review-status" class="notice" role="status">Checking owner access…</p>
+      <p id="review-sign-in">
+        <a class="button" href="../../admin.html">Sign in at the owner desk</a>
+      </p>
+      <div id="review-protected" hidden>
+        <section class="admin-panel">
+          <div class="queue-filters">
+            <div class="field">
+              <label for="filter-game">Game</label
+              ><select id="filter-game">
+                <option value="">All games</option>
+                <option value="player">Player Guess</option>
+                <option value="ladder">Stat Ladder</option>
+                <option value="cross">CrossSport</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="filter-status">Status</label
+              ><select id="filter-status">
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+                <option value="published">Published</option>
+                <option value="deleted">Trash</option>
+                <option value="">All statuses</option>
+              </select>
+            </div>
+            <button id="review-refresh" class="button secondary">Refresh</button>
+          </div>
+          <p id="queue-count" class="fine-print"></p>
+          <div class="table-scroll">
+            <table class="queue-table">
+              <thead>
+                <tr>
+                  <th scope="col">Submission</th>
+                  <th scope="col">Game</th>
+                  <th scope="col">Submitted by</th>
+                  <th scope="col">Submitted on</th>
+                  <th scope="col">Status</th>
+                </tr>
+              </thead>
+              <tbody id="queue-body"></tbody>
+            </table>
+          </div>
+          <button id="review-more" class="text-button" hidden>Load older submissions →</button>
+        </section>
+        <section id="review-detail" class="admin-panel" hidden>
+          <p class="eyebrow">THE OWNER'S EDIT</p>
+          <h2 id="review-title" tabindex="-1">Review a submission</h2>
+          <p id="review-meta" class="fine-print"></p>
+          <p class="fine-print">
+            Original submitted name, kept private: <strong id="original-name"></strong>
+          </p>
+          <div class="field">
+            <label for="approved-name">Approved public creator name</label
+            ><input id="approved-name" maxlength="24" autocomplete="off" />
+            <p class="field-help">
+              2–24 letters, numbers, spaces, dots, underscores, or hyphens. Only the approved name
+              travels with the exported game.
+            </p>
+          </div>
+          <p id="published-note" class="notice" hidden></p>
+          <p id="trash-note" class="notice warning" hidden>
+            This submission is in Trash. Restore it to review or export it again. Published puzzles
+            are preserved.
+          </p>
+          <div id="review-editor"></div>
+          <div class="review-actions">
+            <button class="button secondary" id="review-preview">Preview puzzle ↗</button
+            ><button class="button secondary" id="review-save">Save review edits</button
+            ><button class="button" id="review-approve">Approve</button
+            ><button class="button danger" id="review-reject">Reject</button
+            ><button class="button secondary" id="review-copy" disabled>Copy approved JSON</button
+            ><button class="button secondary" id="review-download" disabled>
+              Download game JSON
+            </button>
+          </div>
+          <div class="review-actions">
+            <button class="button danger" id="review-delete">Delete submission</button>
+            <button class="button secondary" id="review-restore" hidden>Restore submission</button>
+          </div>
+          <div id="review-feedback" role="status" hidden></div>
+          <div class="field">
+            <label for="review-json">Finalized game JSON</label
+            ><textarea id="review-json" class="review-json" readonly rows="8"></textarea>
+            <p class="field-help">
+              After approval, copy or download this one game's JSON. Import it for a chosen date at
+              the owner desk. Approval alone doesn't publish a game.
+            </p>
+          </div>
+        </section>
+      </div>
+    </main>
+    <footer class="site-footer shell">
+      <span class="footer-brand">A fresh slate. Every day.</span
+      ><a href="../../admin.html">Owner desk ↗</a>
+    </footer>
+    <dialog id="delete-confirm" class="dialog" aria-labelledby="delete-title">
+      <h2 id="delete-title">Delete this submission?</h2>
+      <p>
+        <strong id="delete-submission-name"></strong> will move to Trash and disappear from the
+        review queue. You can restore it later. Any published puzzles and their creator credits are
+        preserved.
+      </p>
+      <div class="button-row">
+        <button id="delete-cancel" class="button secondary">Cancel</button>
+        <button id="delete-submit" class="button danger">Delete submission</button>
+      </div>
+    </dialog>
+  </body>
+</html>

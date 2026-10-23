@@ -4,11 +4,7 @@
   "title": "The opening slate",
   "playerGuess": {
     "answer": "Michael Jordan",
-    "aliases": [
-      "Jordan",
-      "MJ",
-      "Michael Jeffrey Jordan"
-    ],
+    "aliases": ["Jordan", "MJ", "Michael Jeffrey Jordan"],
     "sport": "NBA",
     "hints": [
       "I played a professional team sport in North America.",
@@ -23,47 +19,35 @@
       {
         "question": "Who scored 100 points in a single NBA game in 1962?",
         "answer": "Wilt Chamberlain",
-        "aliases": [
-          "Chamberlain",
-          "Wilt"
-        ],
+        "aliases": ["Chamberlain", "Wilt"],
         "sport": "NBA",
         "source": "https://www.nba.com/news/history-top-moments-wilt-chamberlain-scores-100"
       },
       {
         "question": "Which player hit 73 home runs in the 2001 MLB regular season?",
         "answer": "Barry Bonds",
-        "aliases": [
-          "Bonds"
-        ],
+        "aliases": ["Bonds"],
         "sport": "MLB",
         "source": "https://www.mlb.com/player/barry-bonds-111188"
       },
       {
         "question": "Who rushed for 2,105 yards in the 1984 NFL regular season?",
         "answer": "Eric Dickerson",
-        "aliases": [
-          "Dickerson"
-        ],
+        "aliases": ["Dickerson"],
         "sport": "NFL",
         "source": "https://www.profootballhof.com/players/eric-dickerson/"
       },
       {
         "question": "Who led MLB with 70 stolen bases in the 2004 regular season?",
         "answer": "Scott Podsednik",
-        "aliases": [
-          "Podsednik"
-        ],
+        "aliases": ["Podsednik"],
         "sport": "MLB",
         "source": "https://baseballsavant.mlb.com/savant-player/scott-podsednik-325392"
       },
       {
         "question": "Who led the NBA with 13.9 assists per game in the 1984–85 regular season?",
         "answer": "Isiah Thomas",
-        "aliases": [
-          "Thomas",
-          "Isiah"
-        ],
+        "aliases": ["Thomas", "Isiah"],
         "sport": "NBA",
         "source": "https://www.nba.com/news/history-nba-legend-isiah-thomas"
       }
@@ -158,38 +142,23 @@
     "answers": [
       {
         "answer": "Arizona Cardinals",
-        "aliases": [
-          "Cardinals",
-          "Arizona"
-        ]
+        "aliases": ["Cardinals", "Arizona"]
       },
       {
         "answer": "Atlanta Falcons",
-        "aliases": [
-          "Falcons",
-          "Atlanta"
-        ]
+        "aliases": ["Falcons", "Atlanta"]
       },
       {
         "answer": "Baltimore Ravens",
-        "aliases": [
-          "Ravens",
-          "Baltimore"
-        ]
+        "aliases": ["Ravens", "Baltimore"]
       },
       {
         "answer": "Philadelphia Eagles",
-        "aliases": [
-          "Eagles",
-          "Philadelphia"
-        ]
+        "aliases": ["Eagles", "Philadelphia"]
       },
       {
         "answer": "Seattle Seahawks",
-        "aliases": [
-          "Seahawks",
-          "Seattle"
-        ]
+        "aliases": ["Seahawks", "Seattle"]
       }
     ]
   }
