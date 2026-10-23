@@ -556,7 +556,7 @@ function gameShareLines(game, state) {
   if (game === "player") {
     score = `${state.score}/5`;
     blocks = state.recordedOnly
-      ? "Saved result"
+      ? ""
       : [
           ...state.attempts.map((a) => (a.correct ? "🟩" : a.skipped ? "⬜" : "🟥")),
           ...Array(5 - state.attempts.length).fill("⬛"),
@@ -564,12 +564,12 @@ function gameShareLines(game, state) {
   } else if (game === "ladder") {
     score = `${state.score}/15`;
     blocks = state.recordedOnly
-      ? "Saved result"
+      ? ""
       : state.attempts.map((a) => (a.correct ? "🟩" : a.skipped ? "⬜" : "🟥")).join("");
   } else if (game === "grid") {
     score = `${state.score}/9`;
     blocks = state.recordedOnly
-      ? `Saved result · ${state.totalMistakes} mistakes`
+      ? `${state.totalMistakes} mistake${state.totalMistakes === 1 ? "" : "s"}`
       : Array.from({ length: 3 }, (_, row) =>
           state.placements
             .slice(row * 3, row * 3 + 3)
@@ -586,7 +586,7 @@ function gameShareLines(game, state) {
     const reveals = state.revealCount ?? state.reveals.length;
     blocks = `${reveals ? "🟨 Assisted" : "🟩 No reveals"} · ${state.checks} check${state.checks === 1 ? "" : "s"} · ${reveals} letter reveal${reveals === 1 ? "" : "s"}`;
   }
-  return [`${GAME_NAMES[game]}: ${score}`, blocks];
+  return [`${GAME_NAMES[game]}: ${score}`, blocks].filter(Boolean);
 }
 
 export function shareSlate(states, puzzle, mode = "daily", url = "") {

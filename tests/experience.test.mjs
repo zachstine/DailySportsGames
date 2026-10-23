@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { withTimeout } from "../js/async.js";
 import { createOwnerAccess } from "../js/owner-access.js";
-import { firstAcross, crossSelection } from "../js/crossword.js";
+import { firstAcross, crossSelection, crosswordLetters } from "../js/crossword.js";
 import {
   BASE_GAMES,
   GAMES,
@@ -13,6 +13,8 @@ import {
   guessLadder,
   shareBigThree,
   shareScore,
+  shareSlate,
+  stateFromRecordedResult,
 } from "../js/core.js";
 import { drillAnswer } from "../js/new-games.js";
 
@@ -158,6 +160,71 @@ test("The Big Three share keeps each game's emoji score while optional games rem
     );
   }
   assert.match(shareBigThree(states, { ...sample, league: "nfl" }), /· NFL/);
+});
+
+test("restored crossword review shows the solution without changing saved play history or assistance", () => {
+  const model = buildCrossword(sample.crossSport);
+  const state = stateFromRecordedResult(
+    {
+      game: "cross",
+      date: sample.date,
+      score: 1,
+      won: true,
+      checks: 4,
+      reveals: 3,
+      elapsedMs: 75432,
+    },
+    sample,
+  );
+  const original = structuredClone(state);
+  const letters = crosswordLetters(state, model);
+  for (const entry of model.entries)
+    assert.equal(entry.positions.map((i) => letters[i]).join(""), entry.answer);
+  assert.deepEqual(state, original);
+  assert.ok(state.letters.every((letter) => letter === ""));
+  assert.deepEqual(state.reveals, []);
+  assert.match(
+    shareScore("cross", state, sample),
+    /01:15\n🟨 Assisted · 4 checks · 3 letter reveals/,
+  );
+  for (const done of [false, true]) {
+    const local = { ...newState("cross", sample), done };
+    assert.equal(crosswordLetters(local, model), local.letters);
+  }
+});
+
+test("mixed restored and local scores share real totals and keep available emojis without inventing history", () => {
+  const states = Object.fromEntries(
+    GAMES.map((game) => [
+      game,
+      stateFromRecordedResult(
+        {
+          game,
+          date: sample.date,
+          score: { player: 3, ladder: 8, cross: 1, grid: 9, drill: 4 }[game],
+          won: true,
+          checks: game === "grid" ? 2 : 0,
+          reveals: 0,
+        },
+        sample,
+      ),
+    ]),
+  );
+  let text = shareSlate(states, sample);
+  for (const score of ["Player Guess: 3/5", "Stat Ladder: 8/15", "The Matchup: 9/9\n2 mistakes"])
+    assert.ok(text.includes(score));
+  assert.ok(!text.includes("Saved result"));
+  assert.ok(!text.includes("⬛"));
+  states.player = guessPlayer(newState("player", sample), sample, "Wrong");
+  states.player = guessPlayer(states.player, sample, "", true);
+  states.player = guessPlayer(states.player, sample, sample.playerGuess.answer);
+  text = shareBigThree(states, sample);
+  assert.match(text, /Player Guess: 3\/5\n🟥⬜🟩⬛⬛\nStat Ladder: 8\/15\nCrossSport:/);
+  for (const answer of [
+    sample.playerGuess.answer,
+    ...sample.statLadder.questions.map((q) => q.answer),
+  ])
+    assert.ok(!text.includes(answer));
 });
 
 test("Drill accepts full names and unique last names, rejects first names, and handles suffixes and shared surnames", () => {

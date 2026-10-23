@@ -1,7 +1,7 @@
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { newState, guessPlayer, stateFromRecordedResult } from "../js/core.js";
+import { newState, guessPlayer, stateFromRecordedResult, shareScore } from "../js/core.js";
 import {
   loadGame,
   saveGame,
@@ -96,6 +96,25 @@ test("reload restores partial game progress; dates and modes stay isolated", () 
   assert.deepEqual(loadGame("player", sample, "daily"), state);
   assert.equal(loadGame("player", sample, "practice").attempts.length, 0);
   assert.equal(loadGame("player", { ...sample, date: "2026-10-21" }, "daily").attempts.length, 0);
+});
+
+test("refreshing saved account totals preserves the original local guesses and share emojis", () => {
+  setPlayerScope("returning-player");
+  let state = guessPlayer(newState("player", sample), sample, "Wrong");
+  state = guessPlayer(state, sample, "", true);
+  state = guessPlayer(state, sample, sample.playerGuess.answer);
+  saveGame("player", sample, "daily", state);
+  importRecordedResults([
+    { game: "player", date: sample.date, score: 3, won: true, checks: 0, reveals: 0 },
+  ]);
+  setPlayerScope("another-player");
+  assert.equal(loadGame("player", sample, "daily").done, false);
+  setPlayerScope("returning-player");
+  const restored = loadGame("player", sample, "daily");
+  assert.deepEqual(restored, state);
+  assert.match(shareScore("player", restored, sample), /3\/5\n🟥⬜🟩⬛⬛/);
+  assert.equal(allResults()[0].score, 3);
+  assert.deepEqual(pendingResults(), []);
 });
 
 test("crossword elapsed time survives reload and result queues without treating older solves as zero seconds", () => {

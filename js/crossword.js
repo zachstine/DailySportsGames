@@ -6,6 +6,14 @@ export function firstAcross(model) {
   );
 }
 
+export function crosswordLetters(state, model) {
+  // Restored completions can show the solution without claiming these were
+  // the player's original letters or revealing which squares were assisted.
+  return state.done && state.recordedOnly
+    ? model.cells.map((cell) => cell?.letter ?? "")
+    : state.letters;
+}
+
 export function crossSelection(model, entryId, cell, nextCell, toggle = false) {
   const choices = model.cells[nextCell].entries;
   const entry =

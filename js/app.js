@@ -62,7 +62,7 @@ import {
 } from "./leaderboard.js";
 import { validCreatorName } from "./puzzles.js";
 import { withTimeout } from "./async.js";
-import { firstAcross, crossSelection } from "./crossword.js";
+import { firstAcross, crossSelection, crosswordLetters } from "./crossword.js";
 import { icon } from "./icons.js";
 
 const $ = (selector) => document.querySelector(selector);
@@ -681,10 +681,6 @@ function resultPanel(game, heading, description) {
 
 function renderPlayer() {
   const state = states.player;
-  if (state.recordedOnly) {
-    renderRecordedResult("player");
-    return;
-  }
   const visible = state.done ? 5 : state.attempts.length + 1;
   const hints = puzzle.playerGuess.hints
     .map(
@@ -710,6 +706,7 @@ function renderPlayer() {
           : `Clue ${visible} of 5 · ${6 - visible} point${6 - visible === 1 ? "" : "s"} available`}</span
       >
     </div>
+    ${restoredResultNote("player")}
     <ol class="clue-list">
       ${hints}
     </ol>
@@ -742,10 +739,6 @@ function renderPlayer() {
 
 function renderLadder() {
   const state = states.ladder;
-  if (state.recordedOnly) {
-    renderRecordedResult("ladder");
-    return;
-  }
   const current = state.attempts.length;
   const question = puzzle.statLadder.questions[current];
   const rungs = Array.from(
@@ -756,7 +749,7 @@ function renderLadder() {
           ? state.attempts[i].correct
             ? "correct"
             : "incorrect"
-          : i === current
+          : !state.done && i === current
             ? "active"
             : ""}"
         aria-label="Rung ${i + 1}${state.attempts[i]
@@ -776,6 +769,7 @@ function renderLadder() {
           : `${escape(question.sport)} · ${["WARM-UP", "GETTING WARMER", "IN THE WEEDS", "DEEP CUT", "EXPERT TERRITORY"][current]}`}</span
       ><span>${state.score}/15 points</span>
     </div>
+    ${restoredResultNote("ladder")}
     <div class="rungs">${rungs}</div>
     ${state.done
       ? resultPanel(
@@ -785,7 +779,9 @@ function renderLadder() {
             : state.score >= 9
               ? "You know your numbers."
               : "That's a wrap.",
-          `You got ${state.attempts.filter((a) => a.correct).length} of 5 questions right. Each rung was worth a little more.`,
+          state.recordedOnly
+            ? "Each rung was worth a little more. Review all five questions and answers below."
+            : `You got ${state.attempts.filter((a) => a.correct).length} of 5 questions right. Each rung was worth a little more.`,
         )
       : /* HTML */ `${previous
             ? /* HTML */ `<div class="last-answer">
@@ -806,10 +802,13 @@ function renderLadder() {
               (q, i) =>
                 /* HTML */ `<details>
                   <summary>
-                    ${state.attempts[i].correct ? "✓" : "×"} Rung ${i + 1} · ${escape(q.answer)}
+                    ${state.recordedOnly ? "" : state.attempts[i].correct ? "✓" : "×"} Rung ${i + 1}
+                    · ${escape(q.answer)}
                   </summary>
                   <p>${escape(q.question)}</p>
-                  <p>Your answer: ${escape(state.attempts[i].guess)}</p>
+                  ${state.recordedOnly
+                    ? ""
+                    : /* HTML */ `<p>Your answer: ${escape(state.attempts[i].guess)}</p>`}
                   <a href="${escape(q.source)}" target="_blank" rel="noopener noreferrer"
                     >Check the source ${icon("arrow-up-right")}</a
                   >
@@ -823,11 +822,7 @@ function renderLadder() {
 
 function renderGrid() {
   const state = states.grid;
-  if (state.recordedOnly) {
-    renderRecordedResult("grid");
-    return;
-  }
-  const mistakes = state.mistakes.reduce((a, b) => a + b, 0);
+  const mistakes = state.totalMistakes ?? state.mistakes.reduce((a, b) => a + b, 0);
   const bank = gridBank(puzzle)
     .map(
       (name) =>
@@ -847,7 +842,7 @@ function renderGrid() {
       (cell, i) =>
         /* HTML */ `<button
           type="button"
-          class="match-cell ${state.placements[i] !== null
+          class="match-cell ${!state.recordedOnly && state.placements[i] !== null
             ? state.mistakes[i]
               ? "matched assisted"
               : "matched"
@@ -856,10 +851,11 @@ function renderGrid() {
           ${state.placements[i] !== null || state.done ? "disabled" : ""}
           aria-label="Row ${Math.floor(i / 3) + 1}, column ${(i % 3) + 1}: ${escape(
             cell.clue,
-          )}${state.placements[i] !== null ? `, matched ${escape(cell.answer)}` : ""}"
+          )}${state.done || state.placements[i] !== null ? `, matched ${escape(cell.answer)}` : ""}"
         >
           <span class="match-position">0${i + 1}</span
-          ><span class="match-clue">${escape(cell.clue)}</span>${state.placements[i] !== null
+          ><span class="match-clue">${escape(cell.clue)}</span>${state.done ||
+          state.placements[i] !== null
             ? /* HTML */ `<strong>${escape(cell.answer)} ✓</strong>`
             : /* HTML */ `<span class="match-empty"
                 >${state.selected !== null ? "Place selected name +" : "Choose a name below"}</span
@@ -875,6 +871,7 @@ function renderGrid() {
       </div>
       <span>${state.score}/9 matched · ${mistakes} miss${mistakes === 1 ? "" : "es"}</span>
     </div>
+    ${restoredResultNote("grid")}
     <p class="match-instruction" role="status">
       ${state.done
         ? "Every name is in its place."
@@ -887,7 +884,7 @@ function renderGrid() {
       ? resultPanel(
           "grid",
           mistakes ? "A complete lineup." : "A perfect matchup.",
-          `All nine matched · ${mistakes} miss${mistakes === 1 ? "" : "es"}. Green squares were solved first try; yellow squares took another guess.`,
+          `All nine matched · ${mistakes} miss${mistakes === 1 ? "" : "es"}.${state.recordedOnly ? " Review the completed matchup above." : " Green squares were solved first try; yellow squares took another guess."}`,
         )
       : /* HTML */ `<div class="bank-heading">
             <h2>Your starting nine</h2>
@@ -964,27 +961,34 @@ function renderDrill() {
   const user = playerConnection?.auth.currentUser,
     canRank = mode === "daily" && user && !user.isAnonymous;
   const found = state.found || [];
-  const review =
-    state.done && !state.recordedOnly
-      ? /* HTML */ `<div class="drill-review">
-          <h2>The answer sheet</h2>
-          <ul>
-            ${data.answers
-              .map(
-                (answer) =>
-                  /* HTML */ `<li
-                    class="${found.includes(normalize(answer.answer)) ? "found" : "missed"}"
+  const review = state.done
+    ? /* HTML */ `<div class="drill-review">
+        <h2>The answer sheet</h2>
+        <ul>
+          ${data.answers
+            .map(
+              (answer) =>
+                /* HTML */ `<li
+                  class="${state.recordedOnly
+                    ? ""
+                    : found.includes(normalize(answer.answer))
+                      ? "found"
+                      : "missed"}"
+                >
+                  <span aria-hidden="true"
+                    >${state.recordedOnly
+                      ? ""
+                      : found.includes(normalize(answer.answer))
+                        ? "✓"
+                        : "—"}</span
                   >
-                    <span aria-hidden="true"
-                      >${found.includes(normalize(answer.answer)) ? "✓" : "—"}</span
-                    >
-                    ${escape(answer.answer)}
-                  </li>`,
-              )
-              .join("")}
-          </ul>
-        </div>`
-      : "";
+                  ${escape(answer.answer)}
+                </li>`,
+            )
+            .join("")}
+        </ul>
+      </div>`
+    : "";
   let body;
   if (state.done)
     body = /* HTML */ `${resultPanel(
@@ -998,7 +1002,7 @@ function renderDrill() {
           ${state.rankPosted
             ? ""
             : '<button class="button secondary" data-action="post-drill-score">Retry leaderboard submission</button>'}`
-      : ""}${review}`;
+      : ""}${restoredResultNote("drill")}${review}`;
   else if (state.startedAt === null)
     body = /* HTML */ `<div class="drill-start">
       <p>
@@ -1304,10 +1308,7 @@ function selectedEntry() {
 
 function renderCross() {
   const state = states.cross;
-  if (state.recordedOnly) {
-    renderRecordedResult("cross");
-    return;
-  }
+  const letters = crosswordLetters(state, crossword);
   const cells = crossword.cells
     .map((cell, index) =>
       cell
@@ -1318,7 +1319,7 @@ function renderCross() {
             ${cell.number ? /* HTML */ `<span aria-hidden="true">${cell.number}</span>` : ""}<input
               type="text"
               data-letter="${index}"
-              value="${escape(state.letters[index])}"
+              value="${escape(letters[index])}"
               maxlength="1"
               autocomplete="off"
               autocapitalize="characters"
@@ -1354,15 +1355,18 @@ function renderCross() {
     <div class="panel-meta">
       <span class="pill">${crossword.size} × ${crossword.size} MINI</span>
       <div class="cross-meta">
-        <span>${crossword.entries.length} clues</span
-        ><span class="cross-clock"
-          >${state.done ? "Final time" : "Time"}
-          <strong id="cross-timer" role="timer" aria-label="Elapsed solve time" aria-live="off"
-            >${formatDuration(state.elapsedMs)}</strong
-          ></span
-        >
+        <span>${crossword.entries.length} clues</span>
+        ${!state.done || validElapsedMs(state.elapsedMs)
+          ? /* HTML */ `<span class="cross-clock">
+              ${state.done ? "Final time" : "Time"}
+              <strong id="cross-timer" role="timer" aria-label="Elapsed solve time" aria-live="off"
+                >${formatDuration(state.elapsedMs)}</strong
+              >
+            </span>`
+          : ""}
       </div>
     </div>
+    ${restoredResultNote("cross")}
     <div id="active-clue" class="cross-active-clue" aria-live="polite"></div>
     <div class="cross-layout">
       <div>
@@ -1383,8 +1387,9 @@ function renderCross() {
               ><button class="button secondary" data-action="reveal-cross">Reveal a letter</button>
             </div>`}
         <p class="cross-footnote">
-          Start typing or choose a square to start the timer. It pauses away from this crossword.
-          Time, checks, and reveals appear in your shared result.
+          ${state.done
+            ? "Select a clue or square to review the completed crossword."
+            : "Start typing or choose a square to start the timer. It pauses away from this crossword. Time, checks, and reveals appear in your shared result."}
         </p>
       </div>
       <div class="cross-clues">${clues("across")}${clues("down")}</div>
@@ -1399,21 +1404,14 @@ function renderCross() {
   paintCross(!state.done);
 }
 
-function renderRecordedResult(game) {
-  const state = states[game];
-  const description =
-    game === "cross"
-      ? `${state.checks} grid check${state.checks === 1 ? "" : "s"} · ${state.revealCount} letter reveal${state.revealCount === 1 ? "" : "s"}.`
-      : "Your completed score is saved to this account. Come back tomorrow for a fresh game.";
-  $("#game-body").innerHTML = /* HTML */ `<div class="play-panel">
-    ${resultPanel(game, "Today's result is saved.", description)}${game === "cross"
-      ? '<button class="button secondary" data-action="cross-results">Preview Results</button>'
-      : ""}
-    <p class="fine-print">
-      Loaded from your saved score. Individual guesses and grid letters stay on the device where you
-      played.
-    </p>
-  </div>`;
+function restoredResultNote(game) {
+  if (!states[game].recordedOnly) return "";
+  return /* HTML */ `<p class="fine-print">
+    Your score was restored from your account.
+    ${game === "cross"
+      ? "The completed solution is shown; your original revealed squares are unavailable here."
+      : "Your original attempt history is unavailable here."}
+  </p>`;
 }
 
 function crossResult() {
@@ -1434,7 +1432,8 @@ function showCrossResults() {
 
 function paintCross(focus = false) {
   const state = states.cross,
-    entry = selectedEntry();
+    entry = selectedEntry(),
+    letters = crosswordLetters(state, crossword);
   $("#active-clue").innerHTML = /* HTML */ `<strong
       >${entry.number} ${entry.direction === "across" ? "Across" : "Down"}</strong
     >${escape(entry.clue)} (${entry.answer.length})`;
@@ -1445,7 +1444,7 @@ function paintCross(focus = false) {
     el.classList.toggle("incorrect", badLetters.has(i));
     el.classList.toggle("revealed", state.reveals.includes(i));
     const input = el.querySelector("input");
-    input.value = state.letters[i];
+    input.value = letters[i];
     input.tabIndex = i === activeCell ? 0 : -1;
     input.setAttribute("aria-invalid", String(badLetters.has(i)));
   }
@@ -1453,11 +1452,11 @@ function paintCross(focus = false) {
     el.classList.toggle("active", +el.dataset.clue === activeEntry);
     el.setAttribute("aria-pressed", String(+el.dataset.clue === activeEntry));
   }
-  const filled = crossword.cells.filter((cell, index) => cell && state.letters[index]).length;
+  const filled = crossword.cells.filter((cell, index) => cell && letters[index]).length;
   const total = crossword.cells.filter(Boolean).length;
   $("#cross-progress").textContent =
     `${filled}/${total} squares filled · ` +
-    `${state.checks} checks · ${state.reveals.length} reveals`;
+    `${state.checks} checks · ${state.revealCount ?? state.reveals.length} reveals`;
   if (focus) {
     const input = $(`[data-letter="${activeCell}"]`);
     input?.focus({ preventScroll: true });
@@ -1767,6 +1766,10 @@ document.addEventListener("click", async (event) => {
     $("#cross-results-dialog").close();
     $("#share-text").value = shareText;
     $("#share-text").rows = sharingAll ? Math.min(18, shareText.split("\n").length) : 6;
+    const sharingGames = sharingAll ? (bigThree ? BASE_GAMES : games) : [game];
+    $("#share-history-note").hidden = !sharingGames.some(
+      (game) => ["player", "ladder", "grid"].includes(game) && states[game].recordedOnly,
+    );
     $("#share-dialog").showModal();
   }
   if (action === "copy-share") {
