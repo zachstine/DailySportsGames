@@ -1068,7 +1068,7 @@ select {
 }
 @media (min-width: 1400px) {
   .hero {
-    padding: 45px 0 60px;
+    padding: 8px 0 12px;
   }
   .card-art {
     height: 160px;
