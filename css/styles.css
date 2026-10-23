@@ -200,7 +200,7 @@ a:hover {
   grid-template-columns: 1fr 325px;
   gap: 60px;
   align-items: start;
-  padding: 12px 0 28px;
+  padding: 12px 0 14px;
 }
 .hero-kicker {
   font-size: 9px;
