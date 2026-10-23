@@ -11,6 +11,8 @@ import {
   writeLocal,
   gameKey,
   readPreview,
+  readPreviewContext,
+  readPreviewEditions,
   writePreview,
   getDraft,
   saveDraft,
@@ -209,4 +211,36 @@ test("local drafts and owner previews preserve the complete puzzle", () => {
   assert.deepEqual(getDraft(sample.date), sample);
   assert.equal(writePreview(sample), true);
   assert.deepEqual(readPreview(), sample);
+});
+
+test("owner preview switches between complete editions while preview progress and daily results remain isolated", () => {
+  const nfl = { ...structuredClone(sample), league: "nfl" };
+  delete nfl.gridIron;
+  delete nfl.twoMinuteDrill;
+  assert.equal(writePreview(sample, null, { nfl }), true);
+  const editions = readPreviewEditions();
+  assert.deepEqual(Object.keys(editions), ["general", "nfl"]);
+  const state = guessPlayer(newState("player", sample), sample, "Jordan");
+  saveGame("player", editions.general, "preview", state);
+  assert.equal(loadGame("player", editions.nfl, "preview").done, false);
+  saveGame("player", editions.nfl, "preview", state);
+  resetPractice(editions.nfl, "preview");
+  assert.equal(loadGame("player", editions.general, "preview").score, 5);
+  assert.equal(loadGame("player", editions.nfl, "preview").done, false);
+  assert.deepEqual(allResults(), []);
+});
+
+test("single-game previews clear owner edition bundles, and legacy previews still open their original edition", () => {
+  const nfl = { ...structuredClone(sample), league: "nfl" };
+  delete nfl.gridIron;
+  delete nfl.twoMinuteDrill;
+  writePreview(sample, null, { nfl });
+  const context = { game: "cross", href: "./create/" };
+  writePreview(sample, context);
+  assert.deepEqual(readPreviewContext(), context);
+  assert.deepEqual(readPreviewEditions(), {});
+  writePreview(nfl);
+  assert.deepEqual(Object.keys(readPreviewEditions()), ["nfl"]);
+  sessionStorage.setItem("dsg:preview-editions", "invalid JSON");
+  assert.deepEqual(Object.keys(readPreviewEditions()), ["nfl"]);
 });

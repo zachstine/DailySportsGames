@@ -26,6 +26,8 @@ import {
 } from "./puzzles.js";
 import { importOwnerGame, saveOwnerCredits } from "./community.js";
 import { downloadGame, GameEditor } from "./game-editor.js";
+import { collectPreviewEditions } from "./preview.js";
+import { withTimeout } from "./async.js";
 
 export function createOwnerDesk(root, connection) {
   const controller = new AbortController();
@@ -558,7 +560,8 @@ ${escape(question.question)}</textarea
       $("#save-status").textContent = "Saved on this device. Nothing has been published.";
     } else toast("Your browser couldn't save this draft. Export a JSON copy to keep it.");
   });
-  $("#preview").addEventListener("click", () => {
+  $("#preview").addEventListener("click", async () => {
+    if (!authorized || writing) return;
     const { puzzle, errors } = validate();
     if (errors.length) {
       toast("Fix validation errors before previewing.");
@@ -566,12 +569,34 @@ ${escape(question.question)}</textarea
     }
     saveDraft(puzzle);
     rememberRevision();
-    if (!writePreview(puzzle)) {
-      toast("Preview needs browser session storage. Check your browser settings.");
-      return;
+    writing = true;
+    setDocumentState();
+    const button = $("#preview");
+    button.disabled = true;
+    button.textContent = "Preparing editions…";
+    try {
+      const editions = await collectPreviewEditions(puzzle, {
+        draftFor: (league) => getDraft(puzzle.date, league),
+        loadSaved: async (league) => {
+          const saved = await withTimeout(loadOwnerPuzzle(connection, puzzle.date, league), 4000);
+          return saved ? { ...saved.puzzle, credits: saved.credits || {} } : null;
+        },
+      });
+      if (!authorized) return;
+      if (!writePreview(puzzle, null, editions)) {
+        toast("Preview needs browser session storage. Check your browser settings.");
+        return;
+      }
+      dirty = false;
+      location.assign(`./index.html?preview=1&league=${leagueOf(puzzle)}`);
+    } catch (error) {
+      if (authorized) toast(error.message || "The preview couldn't be prepared. Please try again.");
+    } finally {
+      writing = false;
+      setDocumentState();
+      button.disabled = false;
+      button.textContent = "Preview editions ↗";
     }
-    dirty = false;
-    location.assign("./index.html?preview=1");
   });
   $("#start-sample").addEventListener("click", () => {
     const date = $("#puzzle-date").value || dateKey();
