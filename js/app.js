@@ -406,7 +406,6 @@ function renderDashboard() {
         : "Practice makes a sharper sports fan";
   $("#account-link").href =
     `./account.html${currentLeague() === "general" ? "" : `?league=${currentLeague()}`}`;
-  $("#hero-game-count").textContent = `${games.length} games to put your sports brain to work.`;
   const heroGameCount = $("#hero-game-count");
   if (heroGameCount) {
      heroGameCount.textContent =
