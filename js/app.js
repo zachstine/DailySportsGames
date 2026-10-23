@@ -33,6 +33,7 @@ import {
   storageAvailable,
   resetPractice,
   readPreview,
+  readPreviewEditions,
   pendingResults,
   markResultRecorded,
   resultRecorded,
@@ -40,6 +41,7 @@ import {
   getPlayerScope,
   importRecordedResults,
   readLocal,
+  writeLocal,
   readPreviewContext,
 } from "./storage.js";
 import {
@@ -92,6 +94,7 @@ let crossTimer = null,
 let crossStarted = false,
   lastCrossClick = null;
 let previewContext = null;
+let ownerPreviewEditions = {};
 let games = [],
   selectedLeague = "general",
   editionOptions = ["general"];
@@ -190,6 +193,8 @@ async function loadSlate(forcePractice = false) {
   states = {};
   loadedDate = dateKey();
   previewContext = null;
+  ownerPreviewEditions = {};
+  $("#owner-preview-bar").hidden = true;
   $("#home-view").hidden = true;
   $("#game-view").hidden = true;
   $("#unavailable-view").hidden = true;
@@ -203,6 +208,12 @@ async function loadSlate(forcePractice = false) {
       puzzle = readPreview();
       mode = "preview";
       previewContext = readPreviewContext();
+      if (!previewContext) {
+        ownerPreviewEditions = readPreviewEditions();
+        selectedLeague = params.has("league") ? selectedLeague : leagueOf(puzzle);
+        puzzle = ownerPreviewEditions[selectedLeague];
+        editionOptions = LEAGUES.filter((league) => ownerPreviewEditions[league]);
+      }
       if (!puzzle || validatePuzzle(puzzle).length)
         throw new Error(
           "The owner preview expired or is invalid. Return to the owner desk and preview again.",
@@ -210,7 +221,7 @@ async function loadSlate(forcePractice = false) {
       showNotice(
         previewContext
           ? "Puzzle preview · Test freely. Your daily scores and streaks are unaffected."
-          : "Owner preview · Test freely. This doesn't count toward daily streaks.",
+          : "Owner preview · Switch between prepared editions for this date. Daily scores and streaks are unaffected.",
       );
     } else if (forcePractice || params.has("practice") || !configured) {
       puzzle = await withTimeout(
@@ -261,12 +272,27 @@ async function loadSlate(forcePractice = false) {
       } else showNotice("");
     }
     games = gamesForPuzzle(puzzle);
-    if (mode !== "daily") editionOptions = [currentLeague()];
+    if (mode !== "daily" && (mode !== "preview" || previewContext))
+      editionOptions = [currentLeague()];
     $("#play-league").innerHTML = editionOptions
       .map((league) => /* HTML */ `<option value="${league}">${LEAGUE_NAMES[league]}</option>`)
       .join("");
     $("#play-league").value = currentLeague();
     $("#play-league").disabled = mode !== "daily" || editionOptions.length < 2;
+    const ownerPreview = mode === "preview" && !previewContext;
+    $(".public-editions").hidden = ownerPreview;
+    $("#owner-preview-bar").hidden = !ownerPreview;
+    if (ownerPreview) {
+      $("#preview-league").innerHTML = LEAGUES.map(
+        (league) =>
+          /* HTML */ `<option value="${league}" ${ownerPreviewEditions[league] ? "" : "disabled"}>
+            ${LEAGUE_NAMES[league]}${ownerPreviewEditions[league] ? "" : " · Not ready"}
+          </option>`,
+      ).join("");
+      $("#preview-league").value = currentLeague();
+      $("#preview-note").textContent =
+        `${puzzle.date} · ${editionOptions.length} prepared edition${editionOptions.length === 1 ? "" : "s"} · Test progress stays separate`;
+    }
     $("#edition-note").textContent =
       mode === "daily"
         ? `${LEAGUE_NAMES[currentLeague()]} · ${games.length} daily games${editionOptions.length > 1 ? " · Switch editions for more" : ""}`
@@ -1874,14 +1900,23 @@ async function initializePlayer() {
   }
 }
 
-$("#play-league").addEventListener("change", async (event) => {
+async function changeEdition(event) {
+  if (busy) return;
   const url = new URL(location.href);
-  if (event.target.value === "general") url.searchParams.delete("league");
+  const ownerPreview = mode === "preview" && !previewContext;
+  if (ownerPreview && !ownerPreviewEditions[event.target.value]) return;
+  if (event.target.value === "general" && !ownerPreview) url.searchParams.delete("league");
   else url.searchParams.set("league", event.target.value);
-  url.hash = "";
+  if (ownerPreview) {
+    writeLocal("owner-last-league", event.target.value);
+    if (!gamesForPuzzle(ownerPreviewEditions[event.target.value]).includes(url.hash.slice(1)))
+      url.hash = "";
+  } else url.hash = "";
   history.replaceState(null, "", url);
   await loadSlate();
-});
+}
+$("#play-league").addEventListener("change", changeEdition);
+$("#preview-league").addEventListener("change", changeEdition);
 const playerReady = initializePlayer();
 await withTimeout(playerReady, 4000).catch(() => {
   // Public puzzles can still load while Authentication reconnects. Late auth

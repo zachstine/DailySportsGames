@@ -11,6 +11,7 @@ import {
   resultLimit,
   normalize,
 } from "./core.js";
+import { previewEditions } from "./preview.js";
 
 const PREFIX = "dsg:v1:";
 export let storageAvailable = true;
@@ -239,10 +240,14 @@ export function saveDraft(puzzle) {
   return writeLocal(`draft:${editionKey(puzzle.date, leagueOf(puzzle))}`, puzzle);
 }
 
-export function writePreview(puzzle, context = null) {
+export function writePreview(puzzle, context = null, editions = {}) {
   try {
     sessionStorage.setItem("dsg:preview", JSON.stringify(puzzle));
     sessionStorage.setItem("dsg:preview-context", JSON.stringify(context));
+    sessionStorage.setItem(
+      "dsg:preview-editions",
+      JSON.stringify(context ? {} : previewEditions(puzzle, editions)),
+    );
     return true;
   } catch {
     return false;
@@ -267,5 +272,15 @@ export function readPreview() {
     return JSON.parse(sessionStorage.getItem("dsg:preview") || "null");
   } catch {
     return null;
+  }
+}
+
+export function readPreviewEditions() {
+  if (readPreviewContext()) return {};
+  try {
+    const editions = JSON.parse(sessionStorage.getItem("dsg:preview-editions") || "{}");
+    return previewEditions(readPreview(), editions);
+  } catch {
+    return previewEditions(readPreview());
   }
 }

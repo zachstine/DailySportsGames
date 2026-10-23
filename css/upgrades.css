@@ -27,6 +27,40 @@
   font-size: 11px;
   color: var(--muted);
 }
+
+.owner-preview-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 20px;
+  margin: 20px 0 24px;
+  padding: 18px 20px;
+  border: 1px solid #cbd6b6;
+  border-radius: 10px;
+  background: #eef3e4;
+}
+.owner-preview-bar > p {
+  flex-basis: 100%;
+  margin: 0;
+}
+.owner-preview-bar .text-button {
+  font-size: 12px;
+  white-space: nowrap;
+}
+.owner-preview-bar[hidden],
+.public-editions[hidden] {
+  display: none;
+}
+@media (max-width: 760px) {
+  .owner-preview-bar {
+    padding: 15px;
+    gap: 12px;
+  }
+  .owner-preview-bar .edition-picker {
+    width: 100%;
+  }
+}
 .include-game {
   display: flex;
   align-items: center;
