@@ -28,9 +28,11 @@ import { importOwnerGame, saveOwnerCredits } from "./community.js";
 import { downloadGame, GameEditor } from "./game-editor.js";
 import { collectPreviewEditions } from "./preview.js";
 import { withTimeout } from "./async.js";
+import { createAppearanceDesk } from "./appearance-desk.js";
 
 export function createOwnerDesk(root, connection) {
   const controller = new AbortController();
+  const appearance = createAppearanceDesk(root, connection);
   const $ = (selector) => root.querySelector(selector);
   const toastElement = document.querySelector("#toast");
   const escape = (value) =>
@@ -852,6 +854,7 @@ ${escape(question.question)}</textarea
     ready,
     destroy() {
       authorized = false;
+      appearance.destroy();
       clearTimeout(localTimer);
       clearTimeout(toastTimer);
       controller.abort();

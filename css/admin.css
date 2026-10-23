@@ -26,7 +26,7 @@
 }
 .admin-panel {
   padding: 24px;
-  background: #fff;
+  background: var(--surface, #fff);
   border: 1px solid var(--line);
   border-radius: 13px;
   margin-top: 20px;
@@ -115,8 +115,8 @@
   min-width: 0;
 }
 .publishing-panel {
-  background: #eef3e5;
-  border-color: #cbd9b8;
+  background: var(--tint, #eef3e5);
+  border-color: var(--tint-line, #cbd9b8);
 }
 .publish-buttons {
   display: grid;
@@ -152,7 +152,7 @@
   border-radius: 10px;
   padding: 15px;
   margin: 15px 0;
-  background: #fcfdf9;
+  background: var(--surface-soft, #fcfdf9);
 }
 .cross-entry-top {
   display: flex;
@@ -176,7 +176,7 @@
 .remove-entry {
   border: 0;
   background: none;
-  color: #965037;
+  color: var(--negative-text, #965037);
   font-size: 11px;
   min-height: 30px;
 }
@@ -188,7 +188,7 @@
 .editor-grid {
   display: grid;
   gap: 2px;
-  background: var(--ink);
+  background: var(--solid, var(--ink));
   padding: 3px;
   width: 260px;
   max-width: 100%;
@@ -199,7 +199,7 @@
   position: relative;
   display: grid;
   place-items: center;
-  background: #fff;
+  background: var(--surface, #fff);
   font-family: var(--display);
   font-size: 15px;
   font-weight: 600;
@@ -207,7 +207,7 @@
   min-height: 0;
 }
 .editor-square.black {
-  background: var(--ink);
+  background: var(--solid, var(--ink));
 }
 .editor-square span {
   position: absolute;
@@ -219,7 +219,7 @@
 }
 .validation-errors {
   font-size: 11px;
-  color: #8d4029;
+  color: var(--negative-text, #8d4029);
   padding-left: 17px;
   line-height: 1.8;
   max-height: 350px;
@@ -227,10 +227,10 @@
 }
 .validation-success {
   font-size: 12px;
-  background: #dceccb;
+  background: var(--positive-bg, #dceccb);
   border-radius: 7px;
   padding: 12px;
-  color: #2c582a;
+  color: var(--positive-text, #2c582a);
 }
 .wide-button,
 .import-button {
@@ -270,7 +270,7 @@
   font-size: 11px;
 }
 .admin-panel [readonly] {
-  background: #eef1e8;
+  background: var(--surface-soft, #eef1e8);
 }
 .admin-panel .field label {
   font-size: 11px;

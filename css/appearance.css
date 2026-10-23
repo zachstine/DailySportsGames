@@ -1,0 +1,568 @@
+:root {
+  --surface: #fff;
+  --solid: #172e29;
+  --button: #204d3e;
+  --on-button: #fff;
+  --button-hover: #15392d;
+  --accent: #6d8543;
+  --focus: #688b21;
+}
+
+:root[data-color-mode="dark"] {
+  color-scheme: dark;
+  --paper: #111916;
+  --surface: #1b2521;
+  --white: var(--surface);
+  --ink: #edf1e8;
+  --muted: #a7b4ab;
+  --line: #3b4a41;
+  --solid: #0c1310;
+  --green: #bddb9b;
+  --lime: #dced94;
+  --button: #c2dca3;
+  --on-button: #17271c;
+  --button-hover: #d5e9bb;
+  --accent: #c2dca3;
+  --focus: #d2e6ac;
+  --surface-soft: #202d26;
+  --tint: #2a392b;
+  --tint-line: #536447;
+  --positive-bg: #283e2e;
+  --positive-text: #b4dba4;
+  --negative-bg: #442c29;
+  --negative-text: #ffb9a5;
+  --warning-bg: #3f3521;
+  --warning-text: #f4d893;
+  --selected-bg: #46602d;
+  --board-line: #637166;
+}
+
+:root[data-season="halloween"] {
+  --green: #8b420e;
+  --button: #9a480f;
+  --button-hover: #75360d;
+  --accent: #ab5217;
+  --focus: #b65d1e;
+  --lime: #ffbb70;
+  --season-line: #d5b99c;
+  --season-tint: #f6e7d5;
+}
+:root[data-season="thanksgiving"] {
+  --green: #754527;
+  --button: #754527;
+  --button-hover: #5c341d;
+  --accent: #9c5329;
+  --focus: #9c5329;
+  --lime: #f5cc89;
+  --season-line: #d8c0a2;
+  --season-tint: #f3e8d6;
+}
+:root[data-season="christmas"] {
+  --green: #1c6148;
+  --button: #1c6148;
+  --button-hover: #124b35;
+  --accent: #ac3d42;
+  --focus: #a73d42;
+  --lime: #f1d6a5;
+  --season-line: #d7c7bd;
+  --season-tint: #f2e8e1;
+}
+:root[data-color-mode="dark"][data-season="halloween"] {
+  --paper: #19151e;
+  --surface: #241e2b;
+  --surface-soft: #2b2433;
+  --ink: #f4ece4;
+  --muted: #beb1bd;
+  --line: #493d50;
+  --solid: #110e16;
+  --green: #ffc28b;
+  --button: #ffb870;
+  --on-button: #2c180c;
+  --button-hover: #ffc995;
+  --accent: #ffb870;
+  --focus: #ffc58e;
+  --tint: #33283c;
+  --tint-line: #665174;
+  --season-line: #665174;
+  --season-tint: #33283c;
+}
+:root[data-color-mode="dark"][data-season="thanksgiving"] {
+  --green: #edc18a;
+  --button: #edc18a;
+  --button-hover: #f5d3a8;
+  --on-button: #302318;
+  --accent: #edb37e;
+  --focus: #f5cf9d;
+  --season-line: #665141;
+  --season-tint: #352c23;
+}
+:root[data-color-mode="dark"][data-season="christmas"] {
+  --green: #b7d9c5;
+  --button: #b7d9c5;
+  --button-hover: #d0e7da;
+  --on-button: #172b20;
+  --accent: #ffa6a6;
+  --focus: #eac998;
+  --season-line: #63504e;
+  --season-tint: #352829;
+}
+
+.brand-dot,
+.hero h1 em,
+.daily-note-symbol,
+.hint-index,
+.admin-panel .eyebrow {
+  color: var(--accent);
+}
+.button {
+  background: var(--button);
+  border-color: var(--button);
+  color: var(--on-button);
+}
+.button:hover {
+  background: var(--button-hover);
+}
+.button.secondary {
+  background: transparent;
+  color: var(--green);
+  border-color: var(--tint-line, #a9b9a4);
+}
+.button.secondary:hover {
+  background: var(--tint, #ebf0e4);
+}
+.button.danger {
+  background: var(--negative-bg, #fff1e9);
+  color: var(--negative-text, #89432c);
+  border-color: var(--negative-text, #a6573b);
+}
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline-color: var(--focus);
+}
+::selection {
+  background: var(--selected-bg, #ddeb95);
+  color: var(--ink);
+}
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  flex-shrink: 0;
+  min-width: 44px;
+  min-height: 40px;
+  padding: 7px 11px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1;
+}
+.theme-toggle:hover {
+  border-color: var(--accent);
+}
+[data-theme-symbol] {
+  font-size: 19px;
+  line-height: 1;
+}
+.site-header nav {
+  gap: 22px;
+}
+.seasonal-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  background: var(--season-tint);
+  border: 1px solid var(--season-line);
+  color: var(--ink);
+  border-radius: 30px;
+  padding: 5px 11px;
+  margin-bottom: 17px;
+  font-size: 10px;
+  font-weight: 650;
+}
+[data-season-symbol] {
+  font-size: 15px;
+  line-height: 1.5;
+}
+.appearance-preview {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+  padding: 8px 20px;
+  background: var(--season-tint, var(--tint, #eef2e5));
+  border-bottom: 1px solid var(--season-line, var(--line));
+  font-size: 11px;
+  text-align: center;
+}
+.appearance-preview .text-button {
+  font-size: 11px;
+}
+.appearance-panel {
+  margin-bottom: 28px;
+}
+.appearance-fields {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr 1fr;
+  gap: 15px;
+}
+.appearance-fields .field {
+  margin: 0;
+}
+.appearance-panel .button-row {
+  margin-top: 16px;
+}
+.appearance-panel .fine-print {
+  margin-bottom: 0;
+}
+
+:root[data-color-mode="dark"] .scoreboard {
+  background: var(--surface-soft);
+  border-color: var(--line);
+  box-shadow: 7px 8px 0 var(--solid);
+}
+:root[data-color-mode="dark"] .scoreboard-top {
+  border-color: var(--line);
+}
+:root[data-color-mode="dark"] .scoreboard-main strong span {
+  color: var(--muted);
+}
+:root[data-color-mode="dark"] .scoreboard-lines {
+  border-color: var(--line);
+  box-shadow:
+    0 0 0 20px var(--surface-soft),
+    0 0 0 21px var(--line);
+}
+:root[data-color-mode="dark"] .hero-meta {
+  color: var(--muted);
+}
+:root[data-color-mode="dark"] .game-card {
+  --card-bg: #302b3b;
+  border-color: #51445f;
+}
+:root[data-color-mode="dark"] .ladder-card {
+  --card-bg: #37311f;
+  border-color: #5b5030;
+}
+:root[data-color-mode="dark"] .cross-card {
+  --card-bg: #23382e;
+  border-color: #3c5848;
+}
+:root[data-color-mode="dark"] .grid-card {
+  --card-bg: #292f43;
+  --card-ink: #e4e7fc;
+  border-color: #464d6a;
+}
+:root[data-color-mode="dark"] .drill-card {
+  --card-bg: #3b2e20;
+  --card-ink: #f4dfbd;
+  border-color: #624b32;
+}
+:root[data-color-mode="dark"] .card-art {
+  color: #c9b0e4;
+}
+:root[data-color-mode="dark"] .ladder-art {
+  color: #dfc278;
+}
+:root[data-color-mode="dark"] .cross-art {
+  color: #a5c8ad;
+}
+:root[data-color-mode="dark"] .grid-art > div {
+  background: #3f4768;
+  color: #d4d9fc;
+}
+:root[data-color-mode="dark"] .grid-art > div:nth-child(2n) {
+  background: #353c59;
+}
+:root[data-color-mode="dark"] .drill-art {
+  color: var(--card-ink);
+}
+:root[data-color-mode="dark"] .game-card p {
+  color: #c2c5bd;
+}
+:root[data-color-mode="dark"] .card-bottom,
+:root[data-color-mode="dark"] .sport-chip,
+:root[data-color-mode="dark"] .circle-arrow {
+  border-color: #ffffff35;
+}
+:root[data-color-mode="dark"] .match-position,
+:root[data-color-mode="dark"] .match-empty {
+  color: var(--muted);
+}
+:root[data-color-mode="dark"] .match-cell {
+  background: var(--surface-soft);
+  border-color: var(--line);
+}
+:root[data-color-mode="dark"] .match-cell:not(:disabled):hover {
+  background: var(--tint);
+  border-color: var(--focus);
+}
+:root[data-color-mode="dark"] .match-cell.matched {
+  background: var(--positive-bg);
+}
+:root[data-color-mode="dark"] .match-cell.assisted {
+  background: var(--warning-bg);
+}
+:root[data-color-mode="dark"] .match-cell strong {
+  color: var(--positive-text);
+}
+:root[data-color-mode="dark"] .match-cell.assisted strong {
+  color: var(--warning-text);
+}
+:root[data-color-mode="dark"] .bank-name {
+  border-color: var(--line);
+}
+:root[data-color-mode="dark"] .bank-name.selected {
+  background: #575e8f;
+  border-color: #9da6e6;
+  box-shadow: 0 0 0 2px #9da6e64d;
+}
+:root[data-color-mode="dark"] .hint.locked {
+  color: var(--muted);
+}
+:root[data-color-mode="dark"] .dialog {
+  border-color: var(--line);
+}
+:root[data-color-mode="dark"] .cross-cell.revealed:after {
+  border-top-color: #e5bb67;
+}
+
+:root[data-season="halloween"] .scoreboard {
+  background: var(--season-tint);
+  border-color: var(--season-line);
+}
+:root[data-season="halloween"] .scoreboard-top {
+  border-color: var(--season-line);
+}
+:root[data-season="halloween"] .scoreboard-top > span:last-child {
+  font-size: 0;
+}
+:root[data-season="halloween"] .scoreboard-top > span:last-child::after {
+  content: "☾";
+  font-size: 23px;
+  color: var(--accent);
+}
+:root[data-season="halloween"] .scoreboard-lines {
+  border-color: var(--season-line);
+  box-shadow:
+    0 0 0 20px var(--season-tint),
+    0 0 0 21px var(--season-line);
+}
+:root[data-season="christmas"] .live-dot,
+:root[data-season="christmas"] .tiny-dot {
+  background: var(--accent);
+}
+
+@media (max-width: 1100px) {
+  .site-header nav {
+    gap: 15px;
+  }
+  [data-theme-label] {
+    display: none;
+  }
+  .theme-toggle {
+    padding: 7px 10px;
+  }
+}
+@media (max-width: 1000px) {
+  .site-header nav .nav-today {
+    display: none;
+  }
+  .header-inner {
+    flex-wrap: wrap;
+    padding-block: 12px;
+    gap: 8px 16px;
+  }
+  .site-header nav {
+    margin-left: auto;
+  }
+}
+@media (max-width: 760px) {
+  .appearance-fields {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .appearance-panel .button-row .button {
+    flex: 1 1 150px;
+  }
+  .seasonal-badge {
+    margin-bottom: 12px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .game-card {
+    transition: none;
+  }
+}
+
+.halloween-scene {
+  --ghost-fill: #fffdf4;
+  --ghost-face: #43314c;
+  --spider-ink: #44304c;
+  position: relative;
+  height: 78px;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+  border-bottom: 1px solid var(--season-line);
+  background: var(--season-tint);
+}
+:root[data-color-mode="dark"] .halloween-scene {
+  --ghost-fill: #e6dbd0;
+  --spider-ink: #c8accf;
+}
+.halloween-scene svg,
+.halloween-heading-ghost svg,
+.halloween-footer-web svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.halloween-web {
+  position: absolute;
+  top: 0;
+  width: 93px;
+  height: 78px;
+  color: var(--accent);
+  opacity: 0.35;
+}
+.web-left {
+  left: 0;
+}
+.web-right {
+  right: 0;
+  transform: scaleX(-1);
+}
+.halloween-ghost {
+  position: absolute;
+  height: 44px;
+  color: var(--ghost-face);
+  opacity: 0.9;
+  animation: ghost-drift 4s ease-in-out var(--ghost-delay) 2;
+}
+.ghost-body {
+  fill: var(--ghost-fill, #e6dbd0);
+}
+.ghost-face {
+  fill: var(--ghost-face, #43314c);
+}
+.halloween-dropper {
+  position: absolute;
+  top: 0;
+  right: 33%;
+  width: 40px;
+  height: 74px;
+  transform-origin: 50% 0;
+  color: var(--spider-ink);
+  animation: spider-arrival 2.8s ease-in-out both;
+}
+.spider-thread {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  height: 37px;
+  width: 1px;
+  background: currentColor;
+  opacity: 0.7;
+}
+.hanging-spider {
+  position: absolute;
+  top: 32px;
+  left: 0;
+  width: 40px;
+  height: 34px;
+}
+.spider-eye {
+  fill: var(--accent);
+}
+.web-spider {
+  position: absolute;
+  left: 41px;
+  top: 29px;
+  width: 23px;
+  height: 21px;
+  transform: rotate(-18deg);
+  color: var(--spider-ink);
+}
+.halloween-heading-ghost {
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 10px;
+  width: 25px;
+  height: 29px;
+  color: var(--accent);
+  transform: rotate(8deg);
+  pointer-events: none;
+}
+.site-footer {
+  position: relative;
+}
+.halloween-footer-web {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 34px;
+  height: 31px;
+  color: var(--accent);
+  transform: rotate(180deg);
+  opacity: 0.45;
+  pointer-events: none;
+}
+@keyframes spider-arrival {
+  0%,
+  12% {
+    transform: translateY(-78px);
+  }
+  55% {
+    transform: translateY(4px) rotate(4deg);
+  }
+  74% {
+    transform: translateY(-5px) rotate(-3deg);
+  }
+  90% {
+    transform: translateY(1px) rotate(1deg);
+  }
+  100% {
+    transform: translateY(0) rotate(0);
+  }
+}
+@keyframes ghost-drift {
+  0%,
+  100% {
+    transform: translateY(0) rotate(var(--ghost-tilt));
+  }
+  50% {
+    transform: translateY(-7px) rotate(calc(var(--ghost-tilt) * -1));
+  }
+}
+@media (max-width: 760px) {
+  .halloween-web {
+    width: 67px;
+  }
+  .halloween-dropper {
+    right: 25%;
+  }
+  .web-spider {
+    left: 27px;
+    top: 36px;
+  }
+  .halloween-heading-ghost {
+    width: 20px;
+    height: 24px;
+    margin-left: 7px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .halloween-ghost,
+  .halloween-dropper {
+    animation: none;
+  }
+}

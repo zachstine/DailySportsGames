@@ -12,7 +12,7 @@
 }
 .edition-picker select {
   min-width: 150px;
-  background: #fff;
+  background: var(--surface, #fff);
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 11px 36px 11px 14px;
@@ -36,9 +36,9 @@
   gap: 12px 20px;
   margin: 20px 0 24px;
   padding: 18px 20px;
-  border: 1px solid #cbd6b6;
+  border: 1px solid var(--tint-line, #cbd6b6);
   border-radius: 10px;
-  background: #eef3e4;
+  background: var(--tint, #eef3e4);
 }
 .owner-preview-bar > p {
   flex-basis: 100%;
@@ -157,8 +157,8 @@
 }
 .match-cell {
   position: relative;
-  border: 1px solid #d6d5e3;
-  background: #f4f4fa;
+  border: 1px solid var(--tint-line, #d6d5e3);
+  background: var(--surface-soft, #f4f4fa);
   border-radius: 9px;
   min-height: 174px;
   padding: 30px 12px 14px;
@@ -196,20 +196,20 @@
 .match-cell strong {
   font-size: 12px;
   line-height: 1.4;
-  color: #365b35;
+  color: var(--positive-text, #365b35);
 }
 .match-cell.matched {
   opacity: 1;
-  background: #e6efdd;
-  border-color: #bbd0aa;
+  background: var(--positive-bg, #e6efdd);
+  border-color: var(--tint-line, #bbd0aa);
   cursor: default;
 }
 .match-cell.assisted {
-  background: #f6edce;
-  border-color: #dccc90;
+  background: var(--warning-bg, #f6edce);
+  border-color: var(--tint-line, #dccc90);
 }
 .match-cell.assisted strong {
-  color: #7d641c;
+  color: var(--warning-text, #7d641c);
 }
 .match-instruction {
   font-size: 12px;
@@ -241,8 +241,8 @@
 }
 .bank-name {
   min-height: 48px;
-  border: 1px solid #d6d5e3;
-  background: #fff;
+  border: 1px solid var(--tint-line, #d6d5e3);
+  background: var(--surface, #fff);
   border-radius: 7px;
   font-size: 12px;
   color: var(--ink);
@@ -345,7 +345,7 @@
 .drill-feedback {
   font-size: 12px;
   min-height: 24px;
-  color: #47693b;
+  color: var(--positive-text, #47693b);
 }
 .drill-found h2,
 .drill-review h2 {
@@ -355,7 +355,7 @@
 }
 .drill-found h2 > span {
   font: inherit;
-  background: #e8eedb;
+  background: var(--tint, #e8eedb);
   border-radius: 7px;
   padding: 3px 9px;
   margin-left: 5px;
@@ -366,9 +366,9 @@
   flex-wrap: wrap;
 }
 .found-names > span {
-  border: 1px solid #c8d4b3;
-  background: #f0f4e8;
-  color: #375a36;
+  border: 1px solid var(--tint-line, #c8d4b3);
+  background: var(--tint, #f0f4e8);
+  color: var(--positive-text, #375a36);
   border-radius: 6px;
   padding: 8px 11px;
   font-size: 12px;
@@ -386,7 +386,7 @@
   break-inside: avoid;
 }
 .drill-review .found {
-  color: #376236;
+  color: var(--positive-text, #376236);
   font-weight: 600;
 }
 .drill-review .missed {
@@ -420,7 +420,7 @@
   font-weight: 700;
 }
 .your-rank {
-  background: #eef3e4;
+  background: var(--tint, #eef3e4);
 }
 .leaderboard-empty {
   font-size: 13px;
@@ -541,8 +541,8 @@
   line-height: 1.65;
   padding: 12px 15px;
   margin: 0 0 22px;
-  background: #f7f2e5;
-  border: 1px solid #e9ddbd;
+  background: var(--warning-bg, #f7f2e5);
+  border: 1px solid var(--tint-line, #e9ddbd);
   border-radius: 8px;
 }
 .slate-share-buttons {

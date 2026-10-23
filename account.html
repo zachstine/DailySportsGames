@@ -6,10 +6,13 @@
     <meta name="theme-color" content="#142b28" />
     <meta name="robots" content="noindex,nofollow" />
     <title>Your account — Daily Sports Games</title>
+    <script src="./js/appearance-init.js"></script>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="./css/styles.css" />
     <link rel="stylesheet" href="./css/account.css" />
     <link rel="stylesheet" href="./css/upgrades.css" />
+    <link rel="stylesheet" href="./css/appearance.css" />
+    <script type="module" src="./js/appearance.js"></script>
     <script type="module" src="./js/account.js"></script>
   </head>
   <body>
@@ -22,7 +25,19 @@
             >daily<span class="brand-light">sports</span>games<span class="brand-dot">.</span></span
           ></a
         >
-        <nav aria-label="Account navigation"><a href="./index.html">← Back to games</a></nav>
+        <nav aria-label="Account navigation">
+          <a href="./index.html">← Back to games</a>
+          <button
+            class="theme-toggle"
+            type="button"
+            data-theme-toggle
+            aria-label="Switch to dark mode"
+            aria-pressed="false"
+          >
+            <span data-theme-symbol aria-hidden="true">☾</span
+            ><span data-theme-label>Dark mode</span>
+          </button>
+        </nav>
       </div>
     </header>
     <main id="main" class="shell account-shell">

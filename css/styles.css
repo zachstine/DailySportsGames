@@ -102,7 +102,7 @@ select:focus-visible {
 .brand-mark {
   display: grid;
   place-content: center;
-  background: var(--ink);
+  background: var(--solid, var(--ink));
   color: var(--lime);
   width: 39px;
   height: 39px;
@@ -134,7 +134,7 @@ select:focus-visible {
   content: "";
   position: absolute;
   height: 3px;
-  background: var(--ink);
+  background: var(--solid, var(--ink));
   left: 0;
   right: 0;
   bottom: -34px;
@@ -155,19 +155,19 @@ a:hover {
 }
 .notice {
   font-size: 13px;
-  border: 1px solid #d4ddc2;
-  background: #eef2e5;
+  border: 1px solid var(--tint-line, #d4ddc2);
+  background: var(--tint, #eef2e5);
   border-radius: 8px;
   padding: 10px 15px;
   margin: 20px 0 0;
 }
 .notice.warning {
-  background: #fff2d6;
-  border-color: #e7d3a7;
+  background: var(--warning-bg, #fff2d6);
+  border-color: var(--tint-line, #e7d3a7);
 }
 .notice.error {
-  background: #fae9e2;
-  border-color: #dfbba9;
+  background: var(--negative-bg, #fae9e2);
+  border-color: var(--tint-line, #dfbba9);
 }
 .notice a {
   font-weight: 700;
@@ -241,7 +241,7 @@ a:hover {
   border: 1px solid #cbd5bf;
   border-radius: 14px;
   overflow: hidden;
-  background: #edf1df;
+  background: var(--tint, #edf1df);
   position: relative;
   transform: rotate(3deg);
   box-shadow: 7px 8px 0 #e2e7d8;
@@ -290,7 +290,7 @@ a:hover {
   line-height: 1.5;
 }
 .scoreboard-bottom {
-  background: var(--ink);
+  background: var(--solid, var(--ink));
   color: #eaf2d7;
   letter-spacing: 0.2px;
   font-size: 10px;
@@ -511,7 +511,7 @@ a:hover {
   position: absolute;
   top: -100px;
   left: 15px;
-  background: var(--ink);
+  background: var(--solid, var(--ink));
   color: #fff;
   padding: 12px;
   z-index: 10;
@@ -578,7 +578,7 @@ a:hover {
 .pill {
   display: inline-flex;
   border-radius: 20px;
-  background: #eaf0df;
+  background: var(--tint, #eaf0df);
   color: var(--green);
   font-weight: 700;
   font-size: 10px;
@@ -593,7 +593,7 @@ a:hover {
 }
 .hint {
   border: 1px solid var(--line);
-  background: #f9faf6;
+  background: var(--surface-soft, #f9faf6);
   border-radius: 9px;
   padding: 13px 15px;
   display: flex;
@@ -602,8 +602,8 @@ a:hover {
   font-size: 14px;
 }
 .hint.current {
-  background: #edf2e3;
-  border-color: #bdcda3;
+  background: var(--tint, #edf2e3);
+  border-color: var(--tint-line, #bdcda3);
 }
 .hint.locked {
   color: #89918a;
@@ -630,8 +630,8 @@ input,
 textarea,
 select {
   color: var(--ink);
-  background: #fff;
-  border: 1px solid #bdc7bc;
+  background: var(--surface, #fff);
+  border: 1px solid var(--tint-line, #bdc7bc);
   border-radius: 8px;
   padding: 12px 14px;
   min-width: 0;
@@ -710,18 +710,18 @@ select {
   color: var(--muted);
   font-size: 12px;
   padding: 8px 0;
-  border-bottom: 1px solid #ecefe7;
+  border-bottom: 1px solid var(--line);
 }
 .correct-text {
-  color: #336039;
+  color: var(--positive-text, #336039);
 }
 .wrong-text {
-  color: #a44d36;
+  color: var(--negative-text, #a44d36);
 }
 .result-panel {
   text-align: center;
-  background: #edf2e3;
-  border: 1px solid #c5d4ad;
+  background: var(--tint, #edf2e3);
+  border: 1px solid var(--tint-line, #c5d4ad);
   border-radius: 14px;
   padding: 27px;
   margin: 20px 0;
@@ -756,25 +756,25 @@ select {
   height: 40px;
   border-radius: 7px;
   flex: 1;
-  background: #f0f1e9;
+  background: var(--surface-soft, #f0f1e9);
   display: grid;
   place-items: center;
   font-family: var(--display);
   font-size: 13px;
   font-weight: 700;
-  border: 1px solid #dfe4d7;
+  border: 1px solid var(--tint-line, #dfe4d7);
 }
 .rung.active {
-  background: #f6e7b7;
-  border-color: #c8ac5b;
+  background: var(--warning-bg, #f6e7b7);
+  border-color: var(--tint-line, #c8ac5b);
 }
 .rung.correct {
-  background: #d9ebd0;
-  border-color: #8cad7a;
+  background: var(--positive-bg, #d9ebd0);
+  border-color: var(--tint-line, #8cad7a);
 }
 .rung.incorrect {
-  background: #f4dfd7;
-  border-color: #d5ad9e;
+  background: var(--negative-bg, #f4dfd7);
+  border-color: var(--tint-line, #d5ad9e);
 }
 .stat-question {
   font-family: var(--display);
@@ -785,10 +785,10 @@ select {
 }
 .last-answer {
   font-size: 12px;
-  border-left: 3px solid #bbcba5;
+  border-left: 3px solid var(--tint-line, #bbcba5);
   padding: 8px 12px;
   margin-bottom: 20px;
-  background: #f3f6ed;
+  background: var(--surface-soft, #f3f6ed);
 }
 .answer-review {
   margin-top: 22px;
@@ -825,7 +825,7 @@ select {
   align-items: start;
 }
 .cross-active-clue {
-  background: #e4edd9;
+  background: var(--tint, #e4edd9);
   padding: 12px 15px;
   border-radius: 8px;
   margin-bottom: 15px;
@@ -838,8 +838,8 @@ select {
 .cross-grid {
   display: grid;
   gap: 2px;
-  border: 3px solid var(--ink);
-  background: var(--ink);
+  border: 3px solid var(--board-line, var(--ink));
+  background: var(--solid, var(--ink));
   width: 100%;
   aspect-ratio: 1;
   border-radius: 3px;
@@ -847,21 +847,21 @@ select {
 }
 .cross-cell {
   position: relative;
-  background: #fff;
+  background: var(--surface, #fff);
   min-width: 0;
   min-height: 0;
 }
 .cross-cell.black {
-  background: var(--ink);
+  background: var(--solid, var(--ink));
 }
 .cross-cell.in-word {
-  background: #e4edd9;
+  background: var(--tint, #e4edd9);
 }
 .cross-cell.active {
-  background: #c7dd8d;
+  background: var(--selected-bg, #c7dd8d);
 }
 .cross-cell.incorrect {
-  background: #f7d9cf;
+  background: var(--negative-bg, #f7d9cf);
 }
 .cross-cell.revealed:after {
   content: "";
@@ -918,7 +918,7 @@ select {
   margin-bottom: 4px;
 }
 .clue-button.active {
-  background: #e4edd9;
+  background: var(--tint, #e4edd9);
 }
 .clue-button strong {
   flex-shrink: 0;
@@ -997,7 +997,7 @@ select {
   margin-bottom: 19px;
 }
 .rule > span {
-  background: #e5ebd8;
+  background: var(--tint, #e5ebd8);
   border-radius: 8px;
   height: 33px;
   width: 33px;
@@ -1027,7 +1027,7 @@ select {
   font-family: var(--font);
   font-size: 15px;
   line-height: 1.9;
-  background: #fff;
+  background: var(--surface, #fff);
   min-height: 180px;
 }
 .stats-table {
@@ -1058,7 +1058,7 @@ select {
   transform: translateX(-50%);
   padding: 12px 20px;
   border-radius: 10px;
-  background: var(--ink);
+  background: var(--solid, var(--ink));
   color: white;
   z-index: 20;
   font-size: 13px;

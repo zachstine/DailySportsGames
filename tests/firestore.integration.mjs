@@ -18,6 +18,7 @@ import {
 } from "../js/leaderboard.js";
 import { writeDailyResult, playerResultsForDate } from "../js/firebase.js";
 import { gameEnvelope } from "../js/puzzles.js";
+import { loadAppearance, saveAppearance } from "../js/appearance-store.js";
 if (!process.env.FIRESTORE_EMULATOR_HOST)
   throw new Error("Start the demo Firestore emulator first.");
 const require = createRequire(
@@ -414,4 +415,36 @@ test("a Drill can be the first private import, and omitting it later disables it
   assert.equal(key.data().published, false);
   saved = await getDoc(doc(owner.db, `dailyPuzzles/${date}`));
   assert.equal(saved.data().puzzle.twoMinuteDrill, undefined);
+});
+
+test("only owners can change the public seasonal look, with no private fields exposed", async () => {
+  const appearance = { season: "halloween", startsOn: "2026-10-24", endsOn: "2026-10-31" };
+  await assertSucceeds(saveAppearance(client("owner"), appearance));
+  assert.deepEqual(await loadAppearance(client("visitor", "anonymous")), appearance);
+  const anonymousDb = env.unauthenticatedContext().firestore();
+  const snapshot = await assertSucceeds(getDoc(doc(anonymousDb, "siteSettings/appearance")));
+  assert.deepEqual(Object.keys(snapshot.data()).sort(), [
+    "endsOn",
+    "season",
+    "startsOn",
+    "updatedAt",
+  ]);
+  await assertFails(saveAppearance(client("visitor"), { ...appearance, season: "christmas" }));
+  await assertFails(getDocs(collection(anonymousDb, "siteSettings")));
+  await assertFails(getDoc(doc(anonymousDb, "siteSettings/private")));
+});
+
+test("appearance rules reject unknown themes, extra fields, reversed dates, and client timestamps", async () => {
+  const ownerDb = context("owner").firestore();
+  const path = doc(ownerDb, "siteSettings/appearance");
+  const valid = { season: "classic", startsOn: "", endsOn: "", updatedAt: serverTimestamp() };
+  for (const invalid of [
+    { ...valid, season: "unlisted" },
+    { ...valid, secret: "not allowed" },
+    { ...valid, startsOn: "2026-12-31", endsOn: "2026-10-01" },
+    { ...valid, startsOn: "2026-19-01" },
+    { ...valid, updatedAt: Timestamp.fromMillis(0) },
+  ])
+    await assertFails(setDoc(path, invalid));
+  await assertSucceeds(setDoc(path, valid));
 });

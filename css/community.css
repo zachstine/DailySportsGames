@@ -40,8 +40,8 @@
   cursor: pointer;
 }
 .game-picker label:has(input:checked) {
-  background: #edf2e3;
-  border-color: #8da75e;
+  background: var(--tint, #edf2e3);
+  border-color: var(--tint-line, #8da75e);
 }
 .game-picker input {
   margin: 4px 0 0;
@@ -184,13 +184,13 @@
   white-space: nowrap;
 }
 .status-tag.approved {
-  background: #e4f0d9;
+  background: var(--positive-bg, #e4f0d9);
 }
 .status-tag.rejected {
-  background: #f8e3da;
+  background: var(--negative-bg, #f8e3da);
 }
 .status-tag.published {
-  background: #dcece3;
+  background: var(--positive-bg, #dcece3);
 }
 .game-import-panel textarea {
   width: 100%;

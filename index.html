@@ -9,10 +9,13 @@
       content="Daily sports challenges, league editions, and a two-minute trivia sprint. A fresh slate every day."
     />
     <title>Daily Sports Games — Your daily sports fix</title>
+    <script src="./js/appearance-init.js"></script>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="./css/styles.css" />
     <link rel="stylesheet" href="./css/community.css" />
     <link rel="stylesheet" href="./css/upgrades.css" />
+    <link rel="stylesheet" href="./css/appearance.css" />
+    <script type="module" src="./js/appearance.js"></script>
     <script type="module" src="./js/app.js"></script>
   </head>
   <body>
@@ -32,6 +35,17 @@
           ><button class="text-button" data-action="stats">
             Your stats <span aria-hidden="true">↗</span></button
           ><a id="account-link" class="account-link" href="./account.html">Account</a>
+
+          <button
+            class="theme-toggle"
+            type="button"
+            data-theme-toggle
+            aria-label="Switch to dark mode"
+            aria-pressed="false"
+          >
+            <span data-theme-symbol aria-hidden="true">☾</span
+            ><span data-theme-label>Dark mode</span>
+          </button>
         </nav>
       </div>
     </header>
@@ -78,6 +92,9 @@
         <section class="hero" aria-labelledby="hero-title">
           <div class="hero-copy">
             <p class="eyebrow hero-kicker">A LITTLE KNOWLEDGE. A LITTLE COMPETITION.</p>
+            <div class="seasonal-badge" data-season-badge hidden>
+              <span data-season-symbol aria-hidden="true"></span><span data-season-label></span>
+            </div>
             <h1 id="hero-title">Your daily<br />sports <em>fix.</em></h1>
             <p class="hero-description">
               Big fans. Obscure stats. One more clue.<br /><span id="hero-game-count"

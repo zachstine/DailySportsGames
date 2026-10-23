@@ -28,7 +28,7 @@
   align-items: start;
 }
 .account-panel {
-  background: white;
+  background: var(--surface, white);
   border: 1px solid var(--line);
   border-radius: 14px;
   padding: 27px;
@@ -76,7 +76,7 @@
 }
 .auth-divider span {
   position: relative;
-  background: #fff;
+  background: var(--surface, #fff);
   padding: 0 12px;
 }
 .auth-tabs {

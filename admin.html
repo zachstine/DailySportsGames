@@ -6,11 +6,14 @@
     <meta name="theme-color" content="#142b28" />
     <meta name="robots" content="noindex,nofollow" />
     <title>Owner desk — Daily Sports Games</title>
+    <script src="./js/appearance-init.js"></script>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="./css/styles.css" />
     <link rel="stylesheet" href="./css/admin.css" />
     <link rel="stylesheet" href="./css/community.css" />
     <link rel="stylesheet" href="./css/upgrades.css" />
+    <link rel="stylesheet" href="./css/appearance.css" />
+    <script type="module" src="./js/appearance.js"></script>
     <script type="module" src="./js/admin.js"></script>
   </head>
   <body>
@@ -26,6 +29,17 @@
         <nav aria-label="Owner navigation">
           <a href="./admin/submissions/">Review submissions</a
           ><a href="./index.html">← Back to games</a>
+
+          <button
+            class="theme-toggle"
+            type="button"
+            data-theme-toggle
+            aria-label="Switch to dark mode"
+            aria-pressed="false"
+          >
+            <span data-theme-symbol aria-hidden="true">☾</span
+            ><span data-theme-label>Dark mode</span>
+          </button>
         </nav>
       </div>
     </header>
@@ -78,6 +92,46 @@
       ><a href="./index.html">Back to games ↗</a>
     </footer>
     <template id="owner-desk-template">
+      <section class="admin-panel appearance-panel" aria-labelledby="appearance-title">
+        <div class="panel-title">
+          <div>
+            <p class="eyebrow">SITE APPEARANCE / ALL EDITIONS</p>
+            <h2 id="appearance-title">A look for every season</h2>
+            <p>Choose the holiday accents. Each player keeps their own light or dark preference.</p>
+          </div>
+          <span class="small-tag">Site-wide</span>
+        </div>
+        <div class="appearance-fields">
+          <div class="field">
+            <label for="site-season">Seasonal theme</label>
+            <select id="site-season">
+              <option value="classic">✦ Classic</option>
+              <option value="halloween">🎃 Halloween</option>
+              <option value="thanksgiving">🍂 Thanksgiving</option>
+              <option value="christmas">❄ Christmas</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="season-start">Start date · optional</label>
+            <input id="season-start" type="date" min="2020-01-01" max="2099-12-31" />
+          </div>
+          <div class="field">
+            <label for="season-end">End date · optional</label>
+            <input id="season-end" type="date" min="2020-01-01" max="2099-12-31" />
+          </div>
+        </div>
+        <p class="fine-print">
+          Dates use Eastern time and include the end date. Leave both blank to start now and keep
+          the look until you change it. The site returns to Classic outside the selected dates.
+        </p>
+        <div class="button-row">
+          <button id="preview-appearance" class="button secondary" type="button">
+            Preview on this device
+          </button>
+          <button id="save-appearance" class="button" type="button" disabled>Save site look</button>
+        </div>
+        <p id="appearance-status" class="fine-print" role="status">Loading saved site look…</p>
+      </section>
       <div class="admin-edition">
         <div class="field edition-picker">
           <label for="owner-league">Edition</label

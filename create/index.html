@@ -5,10 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#142b28" />
     <title>Create a puzzle — Daily Sports Games</title>
+    <script src="../js/appearance-init.js"></script>
     <link rel="icon" href="../favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="../css/styles.css" />
     <link rel="stylesheet" href="../css/admin.css" />
     <link rel="stylesheet" href="../css/community.css" />
+    <link rel="stylesheet" href="../css/appearance.css" />
+    <script type="module" src="../js/appearance.js"></script>
     <script type="module" src="../js/create.js"></script>
   </head>
   <body>
@@ -21,7 +24,19 @@
             >daily<span class="brand-light">sports</span>games<span class="brand-dot">.</span></span
           ></a
         >
-        <nav aria-label="Creator navigation"><a href="../index.html">← Back to games</a></nav>
+        <nav aria-label="Creator navigation">
+          <a href="../index.html">← Back to games</a>
+          <button
+            class="theme-toggle"
+            type="button"
+            data-theme-toggle
+            aria-label="Switch to dark mode"
+            aria-pressed="false"
+          >
+            <span data-theme-symbol aria-hidden="true">☾</span
+            ><span data-theme-label>Dark mode</span>
+          </button>
+        </nav>
       </div>
     </header>
     <main class="shell admin-shell community-shell" id="main">
